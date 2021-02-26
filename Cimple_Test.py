@@ -1,6 +1,11 @@
 # Fragkathoulas Christos
 # 4196
 # cs04196
+# Panagiotis Katsantas
+# 3390
+# cs03390
+
+import os
 
 
 ########################
@@ -21,34 +26,38 @@ start = 0
 dig = 1
 number = -1
 idk = 2
-keywordIdentifier = -2
+keyIden = -2 # keywordIdentifier
 addOperator = -3
 mulOperator = -4
 groupSymbol = -5
 delimiter = -6
 asgn = 3
 assignment = -7
+asgnStop = -8
 smaller = 4
 larger = 5
-relOperator = -8
+relOp = -9 # relOperator
 rem = 6
-error = -9
+error = -10
+stop = -11
 
-#       numbers letters  +-                */            {}()[]       ,;         :       <        >       =            #     " \n\t\r"
-states = [[dig,   idk,    addOperator,      mulOperator,  groupSymbol, delimiter, asgn,   smaller, larger, relOperator, rem, start],  # state 0
-          [dig,   number, number,           number,       number,      number,
-              number, number,  number, number,      error, number],  # state 1
-          [idk,   idk,    keywordIdentifier, keywordIdentifier, keywordIdentifier, keywordIdentifier,
-              keywordIdentifier, keywordIdentifier, keywordIdentifier, keywordIdentifier, error, keywordIdentifier],  # state 2
-          [error, idk,  error,            error,        groupSymbol,  error,
-              error,  error,   error,  assignment, error, start],  # state 3
-          [relOperator, relOperator,  relOperator, relOperator, relOperator, relOperator,
-              relOperator, error, relOperator, relOperator, error, relOperator],  # smaller 4
-          [relOperator, relOperator, relOperator, relOperator, relOperator, relOperator,
-              relOperator, relOperator, relOperator, relOperator, error, relOperator],  # larger 5
-          [rem,   rem,    rem,              rem,          rem,        rem,
-              rem,     rem,     rem,    rem,        start, rem]  # rem 6
+#        numbers letters  +-            */           {}()[]       ,;         :        <        >        =           #    " \n\t\r"  #.
+states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn,    smaller, larger,  relOp,      rem,   start,   stop],  # state 0
+          [dig,   number, number,      number,      number,      number,    number,  number,  number,  number,     error, number,  stop],  # state 1
+          [idk,   idk,    keyIden,     keyIden,     keyIden,     keyIden,   keyIden, keyIden, keyIden, keyIden,    error, keyIden, stop],  # state 2
+          [error, idk,    error,       error,       groupSymbol, error,     error,   error,   error,   assignment, error, asgnStop,stop],  # state 3
+          [relOp, relOp,  relOp,       relOp,       relOp,       relOp,     relOp,   error,   relOp,   relOp,      error, relOp,   stop],  # smaller 4
+          [relOp, relOp,  relOp,       relOp,       relOp,       relOp,     relOp,   relOp,   relOp,   relOp,      error, relOp,   stop],  # larger 5
+          [rem,   rem,    rem,         rem,         rem,         rem,       rem,     rem,     rem,     rem,        start, rem,     rem]    # rem 6
           ]
+
+# !!!!!!!!!! check for double comment !!!!!!
+
+def error_handler(error):
+    errors = {"error 30":"Cimple's keywords must be under 30 characters.",
+            "error number":"Number out of bounds (-4.294.967.297 ,4.294.967.295)",
+            "error Inv Char":"Invalid character: ",
+            "error after dot":"Code after '.' character is not acceptable."}
 
 
 def advance(char, file_counters):
@@ -62,9 +71,11 @@ def advance(char, file_counters):
 
 def lexer(file_counters):
     last_word = ""
+    comment_counter = 0
     state = start
-    while((state != number) and (state != keywordIdentifier) and (state != addOperator) and (state != mulOperator) and
-          (state != groupSymbol) and (state != delimiter) and (state != assignment) and (state != relOperator) and (state != error)):
+    while((state != number) and (state != keyIden) and (state != addOperator) and (state != mulOperator) and
+          (state != groupSymbol) and (state != delimiter) and (state != asgnStop) and (state != assignment) and 
+          (state != relOp) and (state != error) and (state != stop)):
         file.seek(file_counters[0])
         char = file.read(1)
         advance(char, file_counters)
@@ -91,19 +102,40 @@ def lexer(file_counters):
             next_state = 8
         elif(char == '='):
             next_state = 9
-        elif(char == '#'):
+        elif(char == '#'):  # kdkdkd. # askjfdj#
+            comment_counter += 1
             next_state = 10
+        elif(char in "."):
+            next_state = 12
+            if(comment_counter != 1): break 
+            
+        else:
+            return last_word, "error Inv Char"
+
         last_word += char
-
         state = states[state][next_state]
-        print(last_word + " " + str(state))
 
-    if(state == keywordIdentifier):
+        print(last_word + " file_counter: " + str(file_counters[0]) + " state: "+ str(state))
+        
+        if(comment_counter == 2):
+            last_word = ""
+            comment_counter = 0
+        
+        if((state == start) and (next_state == 11)):
+            last_word = ""
+
+    #------------------- end of automato --------------#
+
+    if((state == keyIden) or (state == number) or (state == asgnStop)):
         file_counters[0] -= 1
         last_word = last_word[:-1]
 
-    if(state == keywordIdentifier):
-        if(last_word == "program "):
+    #print(last_word + " file_counter: " + str(file_counters[0]) + " state: "+ str(state))
+
+    if(state == keyIden):  # keywordIdentifier
+        if(len(last_word) >= 30):
+            return last_word, "error 30"
+        if(last_word == "program"):
             return last_word, "programtk"
         elif(last_word == "declare"):
             return last_word, "declaretk"
@@ -145,15 +177,38 @@ def lexer(file_counters):
             return last_word, "inputtk"
         elif(last_word == "print"):
             return last_word, "printtk"
+        else:
+            return last_word, "keywordtk" # oxi desmevmenes lekseis
+    elif(state == addOperator):
+        return last_word, "addOperatortk"
+    elif(state == mulOperator):
+        return last_word, "mulOperatortk"
+    elif(state == groupSymbol):
+        return last_word, "groupSymboltk"
+    elif(state == delimiter):
+        return last_word, "delimitertk"
+    elif(state == assignment):
+        return last_word, "asignementtk"
+    elif(state == relOp):
+        return last_word, "relOperatortk"
     elif(last_word.isdigit()):
-        print("here")
-        return last_word, "numbertk"
+        if((int(last_word) < -4294967297) or (int(last_word) > 4294967295)):
+            return last_word, "error number"
+        else:
+            return last_word, "numbertk"
     else:
-        return "None", state
+        if(file.read(200) != None):
+                return "","error after dot"
+        else:
+            return last_word, "endtk"
 
 
-file_counters = [0, 0, 0]  # code_file_counter, row, col
+file_counters = [0, 1, 0]  # code_file_counter, row, col
 file = load_file()
-for i in range(0, 10):
+for i in range(0, 53):
     word, tk = lexer(file_counters)
-    #print(word + " " + str(tk))
+    if(tk == "endtk"):
+        print("Program Exits...")
+        SystemExit
+    print("------------------------------------------------ "+ word)
+    #print(word + " file_counter: " + str(file_counters[0]) + " state: "+ str(tk))
