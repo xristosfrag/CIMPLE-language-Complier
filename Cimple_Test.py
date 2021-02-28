@@ -52,19 +52,27 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 
 
 #------------Variables-----------
-file_counters = [0, 1, 1, False]  # code_file_counter, row, col
+file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col
 file = load_file()
-word, token = "",""
+word, token, variables = "","", list()
+strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
+                "procedure","call","return","in","inout","input","print","function"]
 #----------------------------------
 
 def advance(char, file_counters):
-    if char in '\n':
+    file_counters[0] += 1  # code_file_counter
+    file_counters[2] += 1  # col
+    file_counters[4] += 1  # temporary column. It take the value '1' when file_counters[2]=1 (this happens when char = '\n' and lexer reads next char)
+    if(file_counters[2] == 1):
+        #tmp = file_counters[2]
+        file_counters[4] = 2
+    if(char == '\n'):
         file_counters[2] = 0  # col
         file_counters[1] += 1  # row
-    else:
-        file_counters[2] += 1  # col
-    file_counters[0] += 1  # code_file_counter
-
+        file_counters[4] += 1
+        
+    print("row = "+str(file_counters[1]))
+    print("col = "+str(file_counters[2])+" coltmp: "+str(file_counters[4]))
 
 def lexer(file_counters):
     last_word = ""
@@ -113,8 +121,6 @@ def lexer(file_counters):
                 sys.exit()
             last_word += char
             state = states[state][next_state]
-
-            print(last_word + " file_counter: " + str(file_counters[0]) + " state: "+ str(state))
             
             if(comment_counter == 2): #end of comments
                 last_word = ""
@@ -129,10 +135,18 @@ def lexer(file_counters):
         if((state == keyIden) or (state == number) or (state == asgnStop)): #final states.
             file_counters[0] -= 1
             file_counters[2] -= 1
+            if(file_counters[2] < 0):
+                file_counters[2] = 0
+            file_counters[4] -= 1
             if(last_word[-1] == '\n'):
+                print("it goes back")
                 file_counters[1] -= 1
             if((not last_word[-1].isalpha()) and (not last_word[-1].isdigit())):
                 last_word = last_word[:-1]
+            
+            print("!row = "+str(file_counters[1]))
+            print("!col = "+str(file_counters[2]))
+
 
         if(state == keyIden):  # keywordIdentifier
             if(len(last_word) >= 30):
@@ -227,16 +241,19 @@ def program():
     global word,token
     if(token == "programtk"):
         word, token = lexer(file_counters)
+        print(word+" "+token)
         if(token == "keywordtk"):
             word, token = lexer(file_counters)
+            print(word+" "+token)
             block()
         else:
-            print("Program name expected. Although '"+word+"' found.\n Error at line: "+str(file_counters[1])+
-            ",column: " +(str(file_counters[2] - len(word))))
+            print("Program name expected. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
     else:
-        print("Keyword 'program' was expected in order to start the program.Although '"+word+"' found")
+        print("Keyword 'program' was expected in order to start the program.Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
         file.close()
         sys.exit()
 #============ PROGRAM  ====================
@@ -244,43 +261,129 @@ def program():
 #============ BLOCK ================
 def block():
     global word,token
-    print(word+" "+token)
-    #declarations()
+    declarations()
+    print(variables)
     #subprograms()
-    #statements()
+    statements()
 #============ BLOCK ================
 
-#============ s ================   
+#============ STATEMENTS ================   
 def statements():
     global word,token
     if(token == "begintk"):
         word, token = lexer(file_counters)
+        print(word+" "+token)
         #sequence()
         if(token == "endtk"):
             word, token = lexer(file_counters)
+            print(word+" "+token)
         else:
-            print("Keyword '.' was expected in order to end program. Although '"+word+"' found.\n Error at line: "+str(file_counters[1])+
-            ",column: " +(str(file_counters[2] - len(word))))
+            print("Keyword '.' was expected in order to end program. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
     else:
-        print("Keyword '{' was expected. Although '"+word+"' found.\n Error at line: "+str(file_counters[1])+
-            ",column: " +(str(file_counters[2] - len(word))))
+        print("Keyword '{' was expected. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+#============ STATEMENTS ================  
+
+#============ DECLARATIONS ================  
+def declarations():
+    global word,token
+    if(token == "declaretk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        varlist()
+        
+        if(word != ';'):
+            print("Keyword ';' was expected at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))) +" in order to finish the declarations of variables")
+            file.close()
+            sys.exit()
+    else:
+        if(token == "numbertk"):
+            print("Numbers are only acceptable in function block or main block.\nError at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+
+        elif(token == "keywordtk"):
+            print("Keywords are unacceptable at this point of code. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        elif(word in strict_words[:-1]):
+            print("'Strict words' except from (declare) are not acceptable in function block or main block.\nError at line: "
+            +str(file_counters[1]) + ",column: " +(str(file_counters[4] - len(word))))
+            
+        elif((token == "addOperatortk") or (token == "mulOperatortk") or (token == "groupSymboltk") or (token == "asgntk")
+            or (token == "asignementtk") or (token == "smallertk") or (token == "largertk") or (token == "relOperatortk")):
+            print("Symbols like '"+word+"' are only acceptable in function block or main block.\nError at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            
+        elif((word == ';') or (word == ',')):
+            print("Symbol "+word+" is unacceptable at this point of code. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+
         file.close()
         sys.exit()
 
+# declare x,y;
+#============ DECLARATIONS ================  
+
+#============ VARLIST ================
+def varlist():
+    global word,token,variables
+
+    if(token == "keywordtk"):
+        variables.append(word)
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        if((word != ',') and (word != ';')):
+            print("Keyword ',' was expected at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))) +" in order to declare more than one variables")
+            file.close()
+            sys.exit()
+    else:
+        illegal_variables()
+
+    while(word == ','):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        if(token == "keywordtk"):
+            variables.append(word)
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            if(word == ';'):
+                break
+            elif(word != ','):
+                print("Keyword ',' was expected at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))) +" in order to declare more than one variables")
+                file.close()
+                sys.exit()
+            else:
+                continue
+        else:
+            illegal_variables()
+
+#============ VARLIST ================
+
+
+# Illegal variable names for VarList method
+def illegal_variables():
+    global word,token,variables
+    if(word in strict_words):
+        print("'Strict words'like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    elif(token == "numbertk"):
+        print("Numbers are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    else:
+        print("Symbols like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    file.close()
+    sys.exit()
+
+
 #==================== MAIN ================
 word, token = lexer(file_counters)
+print(word+" "+token)
 program()
-word, token = lexer(file_counters)
-print(word+" "+token)
-word, token = lexer(file_counters)
-print(word+" "+token)
-word, token = lexer(file_counters)
-print(word+" "+token)
-word, token = lexer(file_counters)
-print(word+" "+token)
-word, token = lexer(file_counters)
-print(word+" "+token)
-word, token = lexer(file_counters)
-print(word+" "+token)
