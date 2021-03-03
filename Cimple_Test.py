@@ -7,9 +7,9 @@
 
 import sys
 
-########################
-# Lektikos Analyths
-########################
+#=============================================================
+#                   Lektikos Analyths
+#=============================================================
 def load_file():
     while True:
         try:
@@ -39,10 +39,10 @@ error = -10
 stop = -11
 
 #        numbers letters  +-            */           {}()[]       ,;         :        <        >        =           #    " \n\t\r"  #.
-states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn,    smaller, larger,  relOp,      rem,   start,   stop],  # state 0
-          [dig,   number, number,      number,      number,      number,    number,  number,  number,  number,     error, number,  stop],  # state 1
-          [idk,   idk,    keyIden,     keyIden,     keyIden,     keyIden,   keyIden, keyIden, keyIden, keyIden,    error, keyIden, stop],  # state 2
-          [error, idk,    error,       error,       groupSymbol, error,     error,   error,   error,   assignment, error, asgnStop,stop],  # state 3
+states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn,    smaller, larger,  relOp,      rem,   start,   stop],  # start 0
+          [dig,   number, number,      number,      number,      number,    number,  number,  number,  number,     error, number,  stop],  # dig 1
+          [idk,   idk,    keyIden,     keyIden,     keyIden,     keyIden,   keyIden, keyIden, keyIden, keyIden,    error, keyIden, stop],  # idk 2
+          [error, idk,    error,       error,       groupSymbol, error,     error,   error,   error,   assignment, error, asgnStop,stop],  # asgn 3
           [relOp, relOp,  relOp,       relOp,       relOp,       relOp,     relOp,   error,   relOp,   relOp,      error, relOp,   stop],  # smaller 4
           [relOp, relOp,  relOp,       relOp,       relOp,       relOp,     relOp,   relOp,   relOp,   relOp,      error, relOp,   stop],  # larger 5
           [rem,   rem,    rem,         rem,         rem,         rem,       rem,     rem,     rem,     rem,        start, rem,     rem]    # rem 6
@@ -66,7 +66,7 @@ def advance(char, file_counters):
     if(file_counters[2] == 1):
         #tmp = file_counters[2]
         file_counters[4] = 2
-    print(repr(str(char)))
+    #print(repr(str(char)))
     if((char == "\n") and (char != '\t') and (char != '\r') and (char != '')):
         file_counters[2] = 0  # col
         file_counters[1] += 1  # row
@@ -270,16 +270,24 @@ def block(file_counters):
 #============ DECLARATIONS ================  
 def declarations(file_counters):
     global word,token
+    weHadADeclare = False
+
     if(token == "declaretk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
         varlist(file_counters)
-        
+
         if(word != ';'):
             print("Keyword ';' was expected at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))) +" in order to finish the declarations of variables")
             file.close()
             sys.exit()
+
+        if(word == ';'):
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+        
+        
     else:
         if(token == "numbertk"):
             print("Numbers are only acceptable in function block or main block.\nError at line: "+str(file_counters[1])+
@@ -303,13 +311,18 @@ def declarations(file_counters):
 
         file.close()
         sys.exit()
+    #if(weHadADeclare):
+        #word, token = lexer(file_counters)
+        #print(word+" "+token)
 #============ DECLARATIONS ================  
 
 #============ VARLIST ================
 def varlist(file_counters):
     global word,token,variables
+    count_vars, count_commas = 0, 0
 
     if(token == "keywordtk"):
+        count_vars += 1
         variables.append(word)
         word, token = lexer(file_counters)
         print(word+" "+token)
@@ -322,6 +335,7 @@ def varlist(file_counters):
         illegal_variables()
 
     while(word == ','):
+        count_commas += 1
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
@@ -329,7 +343,6 @@ def varlist(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
             if(word == ';'):
-                word, token = lexer(file_counters)
                 break
             elif(word != ','):
                 print("Keyword ',' was expected at line: "+str(file_counters[1])+
@@ -343,22 +356,6 @@ def varlist(file_counters):
 
 #============ VARLIST ================
 
-
-# Illegal variable names for VarList method
-def illegal_variables():
-    global word,token,variables
-    if(word in strict_words):
-        print("'Strict words'like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
-        ",column: " +(str(file_counters[4] - len(word))))
-    elif(token == "numbertk"):
-        print("Numbers are not acceptable as variable names.Error at line: "+str(file_counters[1])+
-        ",column: " +(str(file_counters[4] - len(word))))
-    else:
-        print("Symbols like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
-        ",column: " +(str(file_counters[4] - len(word))))
-    file.close()
-    sys.exit()
-
 #============ SUBPROGRAMS ================  
 
 def subprograms(file_counters):
@@ -366,16 +363,13 @@ def subprograms(file_counters):
     sub = True
     while(sub):
         sub = subprogram(file_counters)
-        print("SUBPROGRAM--")
-    print("SUBPROGRAMS")
+        
 #============ SUBPROGRAMS ================  
 
 #============ SUBPROGRAM ================ 
 def subprogram(file_counters):
     global word, token
-    print(word+" "+token)
     if(token == "functiontk"):
-        print("its in function")
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
@@ -388,8 +382,9 @@ def subprogram(file_counters):
                 if(word == ')'):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
-                    block(file_counters, )
-            
+                    block(file_counters)
+        else:
+            illegal_function_names("function")
     elif(token == "proceduretk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
@@ -404,7 +399,8 @@ def subprogram(file_counters):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
                     block(file_counters)
-         
+        else:
+         illegal_function_names("procedure")
     else:
         return False
 #============ SUBPROGRAM ================ 
@@ -479,10 +475,44 @@ def statements(file_counters):
         sys.exit()
 #============ STATEMENTS ================  
 
+#======================================================================
+#                   Error Handler Methods
+#======================================================================
 
+# Illegal variable names for VarList method
+def illegal_variables():
+    global word,token,variables
+    if(word in strict_words):
+        print("Keyword expected after ','. 'Strict words' like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    elif(token == "numbertk"):
+        print("Keyword expected after ','. Numbers are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    else:
+        print("Keyword expected after ','. Symbols like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    file.close()
+    sys.exit()
 
+# Illegal function names for Subprogram method
+def illegal_function_names(functionOrProcedure):
+    global word,token,variables
+    if(token == "numbertk"):
+        print("Keyword expected here. Numbers are not acceptable as "+functionOrProcedure+" names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    elif(token in strict_words):
+        print("Keyword expected here. 'Strict words' like '"+word+"' are not acceptable as "+functionOrProcedure+" names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    else:
+        print("Keyword expected here. Symbols like '"+word+"' are not acceptable as "+functionOrProcedure+" names.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    file.close()
+    sys.exit()
+#======================================================================
+#                   Error Handler Methods
+#======================================================================
 
-#==================== MAIN ================
+#==================== MAIN ============================================
 word, token = lexer(file_counters)
 print(word+" "+token)
 program(file_counters)
