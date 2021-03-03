@@ -72,8 +72,8 @@ def advance(char, file_counters):
         file_counters[1] += 1  # row
         file_counters[4] += 1
         
-    print("row = "+str(file_counters[1]))
-    print("col = "+str(file_counters[2])+" coltmp: "+str(file_counters[4]))
+    #print("row = "+str(file_counters[1]))
+    #print("col = "+str(file_counters[2])+" coltmp: "+str(file_counters[4]))
 
 def lexer(file_counters):
     last_word = ""
@@ -140,13 +140,13 @@ def lexer(file_counters):
                 file_counters[2] = 0
             file_counters[4] -= 1
             if(last_word[-1] == '\n'):
-                print("it goes back")
+                #print("it goes back")
                 file_counters[1] -= 1
             if((not last_word[-1].isalpha()) and (not last_word[-1].isdigit())):
                 last_word = last_word[:-1]
             
-            print("!row = "+str(file_counters[1]))
-            print("!col = "+str(file_counters[2]))
+            #print("!row = "+str(file_counters[1]))
+            #print("!col = "+str(file_counters[2]))
 
 
         if(state == keyIden):  # keywordIdentifier
@@ -329,6 +329,7 @@ def varlist(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
             if(word == ';'):
+                word, token = lexer(file_counters)
                 break
             elif(word != ','):
                 print("Keyword ',' was expected at line: "+str(file_counters[1])+
@@ -372,7 +373,9 @@ def subprograms(file_counters):
 #============ SUBPROGRAM ================ 
 def subprogram(file_counters):
     global word, token
+    print(word+" "+token)
     if(token == "functiontk"):
+        print("its in function")
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
@@ -480,14 +483,6 @@ def statements(file_counters):
 
 
 #==================== MAIN ================
-#lines = file.readlines()
-#print(lines)
-tmp = file.read(-1)
-splitted = tmp.split('\n')
-print(splitted)
-
-
-
 word, token = lexer(file_counters)
 print(word+" "+token)
 program(file_counters)
