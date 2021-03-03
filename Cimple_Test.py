@@ -54,7 +54,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col
 file = load_file()
-word, token, variables = "","", list()
+word, token, variables, ins, inouts = "","", list(), list(), list()
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
 #----------------------------------
@@ -66,7 +66,8 @@ def advance(char, file_counters):
     if(file_counters[2] == 1):
         #tmp = file_counters[2]
         file_counters[4] = 2
-    if(char == '\n'):
+    print(repr(str(char)))
+    if((char == "\n") and (char != '\t') and (char != '\r') and (char != '')):
         file_counters[2] = 0  # col
         file_counters[1] += 1  # row
         file_counters[4] += 1
@@ -237,7 +238,7 @@ def lexer(file_counters):
 #==================================================================
 
 #============ PROGRAM =================
-def program():
+def program(file_counters):
     global word,token
     if(token == "programtk"):
         word, token = lexer(file_counters)
@@ -245,7 +246,7 @@ def program():
         if(token == "keywordtk"):
             word, token = lexer(file_counters)
             print(word+" "+token)
-            block()
+            block(file_counters)
         else:
             print("Program name expected. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
@@ -259,43 +260,20 @@ def program():
 #============ PROGRAM  ====================
 
 #============ BLOCK ================
-def block():
+def block(file_counters):
     global word,token
-    declarations()
-    print(variables)
-    #subprograms()
-    statements()
+    declarations(file_counters)
+    subprograms(file_counters)
+    #statements(file_counters)
 #============ BLOCK ================
 
-#============ STATEMENTS ================   
-def statements():
-    global word,token
-    if(token == "begintk"):
-        word, token = lexer(file_counters)
-        print(word+" "+token)
-        #sequence()
-        if(token == "endtk"):
-            word, token = lexer(file_counters)
-            print(word+" "+token)
-        else:
-            print("Keyword '.' was expected in order to end program. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
-            ",column: " +(str(file_counters[4] - len(word))))
-            file.close()
-            sys.exit()
-    else:
-        print("Keyword '{' was expected. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
-            ",column: " +(str(file_counters[4] - len(word))))
-        file.close()
-        sys.exit()
-#============ STATEMENTS ================  
-
 #============ DECLARATIONS ================  
-def declarations():
+def declarations(file_counters):
     global word,token
     if(token == "declaretk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        varlist()
+        varlist(file_counters)
         
         if(word != ';'):
             print("Keyword ';' was expected at line: "+str(file_counters[1])+
@@ -325,12 +303,10 @@ def declarations():
 
         file.close()
         sys.exit()
-
-# declare x,y;
 #============ DECLARATIONS ================  
 
 #============ VARLIST ================
-def varlist():
+def varlist(file_counters):
     global word,token,variables
 
     if(token == "keywordtk"):
@@ -382,8 +358,136 @@ def illegal_variables():
     file.close()
     sys.exit()
 
+#============ SUBPROGRAMS ================  
+
+def subprograms(file_counters):
+    global word, token
+    sub = True
+    while(sub):
+        sub = subprogram(file_counters)
+        print("SUBPROGRAM--")
+    print("SUBPROGRAMS")
+#============ SUBPROGRAMS ================  
+
+#============ SUBPROGRAM ================ 
+def subprogram(file_counters):
+    global word, token
+    if(token == "functiontk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        if(token == "keywordtk"):
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            if(word == '('):
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+                formalparlist(file_counters)
+                if(word == ')'):
+                    word, token = lexer(file_counters)
+                    print(word+" "+token)
+                    block(file_counters, )
+            
+    elif(token == "proceduretk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        if(token == "keywordtk"):
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            if(word == '('):
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+                formalparlist(file_counters)
+                if(word == ')'):
+                    word, token = lexer(file_counters)
+                    print(word+" "+token)
+                    block(file_counters)
+         
+    else:
+        return False
+#============ SUBPROGRAM ================ 
+
+#============ FORMALPARLIST ================
+
+def formalparlist(file_counters):
+    global word, token
+    flag = token
+    if((token == "intk") or (token == "inouttk")):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        formalparitem(file_counters, flag)
+
+        while(word == ','):
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            formalparitem(file_counters,flag)
+            if(word != ')'):
+                if(word != ','):
+                    print("Keyword ',' was expected at line: "+str(file_counters[1])+
+                    ",column: " +(str(file_counters[4] - len(word))) +" in order to add more parameters")
+                    file.close()
+                    sys.exit()
+# inout x , y l
+#============ FORMALPARLIST ================
+
+#============ FORMALPARITEM ================
+
+def formalparitem(file_counters,flag):
+    global word, token
+    if(flag == "intk"):
+        if(token == "keywordtk"):
+            ins.append(word)
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+        else:
+            print("Only keywords like ([a..z] or [A..Z] or [a..z][A..Z] or [A..Z][a..z] or [a..z][A..Z][0..9] or [A..Z][a..z][0..9]) are allowed as function parameters")
+            file.close()
+            sys.exit()
+    elif(flag == "inouttk"):
+        if(token == "keywordtk"):
+            wordreference = [str(word)]
+            inouts.append(wordreference)
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+        else:
+            print("Only keywords like ([a..z] or [A..Z] or [a..z][A..Z] or [A..Z][a..z] or [a..z][A..Z][0..9] or [A..Z][a..z][0..9]) are allowed as procedure parameters")
+            file.close()
+            sys.exit()
+#============ FORMALPARITEM ================
+
+#============ STATEMENTS ================   
+def statements(file_counters):
+    global word,token
+    if(token == "begintk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        #sequence()                                                 #########################
+        if(token == "endtk"):
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+        else:
+            print("Keyword '.' was expected in order to end program. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Keyword '{' was expected. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+#============ STATEMENTS ================  
+
+
+
 
 #==================== MAIN ================
+#lines = file.readlines()
+#print(lines)
+tmp = file.read(-1)
+splitted = tmp.split('\n')
+print(splitted)
+
+
+
 word, token = lexer(file_counters)
 print(word+" "+token)
-program()
+program(file_counters)
