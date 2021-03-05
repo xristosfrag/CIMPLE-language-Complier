@@ -211,7 +211,7 @@ def lexer(file_counters):
         elif(state == delimiter):
             return last_word, "delimitertk"
         elif(state == assignment):
-            return last_word, "asignementtk"
+            return last_word, "assignmenttk"
         elif(state == asgnStop):
             return last_word, "asgntk"
         elif(state == relOp):
@@ -299,7 +299,7 @@ def declarations(file_counters):
         sys.exit()
         
     elif((token == "addOperatortk") or (token == "mulOperatortk") or (token == "groupSymboltk") or (token == "asgntk")
-        or (token == "asignementtk") or (token == "smallertk") or (token == "largertk") or (token == "relOperatortk")):
+        or (token == "assignmenttk") or (token == "smallertk") or (token == "largertk") or (token == "relOperatortk")):
         print("Symbols like '"+word+"' are only acceptable in function block or main block.\nError at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
         file.close()
