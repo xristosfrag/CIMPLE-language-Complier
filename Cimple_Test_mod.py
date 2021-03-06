@@ -53,6 +53,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col
+counterforblockcalls = 0
 file = load_file()
 word, token, variables, ins, inouts = "","", list(), list(), list()
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
@@ -117,7 +118,8 @@ def lexer(file_counters):
                 if(comment_counter != 1):
                     file_counters[3] = True
             else:
-                print("Invalid character: "+ char)
+                print("Invalid character: "+ char +". Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
                 file.close()
                 sys.exit()
             last_word += char
@@ -151,7 +153,8 @@ def lexer(file_counters):
 
         if(state == keyIden):  # keywordIdentifier
             if(len(last_word) >= 30):
-                print("Cimple's keywords must be under 30 characters.")
+                print("Cimple's keywords must be under 30 characters. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
                 file.close()
                 sys.exit()
             if(last_word == "program"):
@@ -211,7 +214,7 @@ def lexer(file_counters):
         elif(state == delimiter):
             return last_word, "delimitertk"
         elif(state == assignment):
-            return last_word, "assignmenttk"
+            return last_word, "asignementtk"
         elif(state == asgnStop):
             return last_word, "asgntk"
         elif(state == relOp):
@@ -299,7 +302,7 @@ def declarations(file_counters):
         sys.exit()
         
     elif((token == "addOperatortk") or (token == "mulOperatortk") or (token == "groupSymboltk") or (token == "asgntk")
-        or (token == "assignmenttk") or (token == "smallertk") or (token == "largertk") or (token == "relOperatortk")):
+        or (token == "asignementtk") or (token == "smallertk") or (token == "largertk") or (token == "relOperatortk")):
         print("Symbols like '"+word+"' are only acceptable in function block or main block.\nError at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
         file.close()
@@ -364,7 +367,8 @@ def subprograms(file_counters):
 
 #============ SUBPROGRAM ================= 
 def subprogram(file_counters):
-    global word, token
+    global word, token 
+    #counterforblockcalls
     if(token == "functiontk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
@@ -378,7 +382,9 @@ def subprogram(file_counters):
                 if(word == ')'):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
+                    #counterforblockcalls += 1
                     block(file_counters)
+                    #counterforblockcalls -= 1
         else:
             illegal_function_names("function")
     elif(token == "proceduretk"):
@@ -394,7 +400,9 @@ def subprogram(file_counters):
                 if(word == ')'):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
+                    #counterforblockcalls += 1
                     block(file_counters)
+                    #counterforblockcalls -= 1
         else:
          illegal_function_names("procedure")
     else:
@@ -451,18 +459,19 @@ def formalparitem(file_counters,flag):
 
 #============ STATEMENTS ===================   
 def statements(file_counters):
-    global word,token
+    global word,token,counterforblockcalls
+    forreturn = ""
 
     if(token == "begintk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        statement(file_counters)
+        forreturn = forreturn +" "+ statement(file_counters)
 
         while(word == ';'):
             word, token = lexer(file_counters)
             print(word+" "+token)
-            statement(file_counters)
+            forreturn = forreturn +" "+ statement(file_counters)
 
             if(token != "endtk"):
                 if(word != ';'):
@@ -477,100 +486,412 @@ def statements(file_counters):
             file.close()
             sys.exit()
     else: 
-        statement(file_counters)
+        forreturn = forreturn +" "+ statement(file_counters)
+        #if(counterforblockcalls == 0):
+        if(token == 'stoptk'):
+            print("Program excited succesfully!")
+            file.close()
+            sys.exit()
         if(word != ';'):
             print("Syntax error. Keyword ';' was expected at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))) +" in order to finish with the statements")
             file.close()
             sys.exit()
-#============ STATEMENTS ================  
+        
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+    
+    return forreturn
+#============ STATEMENTS ==================  
 
 #============ STATEMENT ===================   
 def statement(file_counters):
     global word,token
+    forreturn = ""
 
     if(token == "asgntk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        asgnStat(file_counters)
+        forreturn = forreturn +" "+ asgnStat(file_counters)
     elif(token == "iftk"):
-        word, token = lexer(file_counters)
-        print(word+" "+token)
-        ifStat(file_counters)
+        forreturn = forreturn +" "+ ifStat(file_counters)
     elif(token == "whiletk"):
-        word, token = lexer(file_counters)
-        print(word+" "+token)
-        whileStat(file_counters)
+        #word, token = lexer(file_counters)
+        #print(word+" "+token)
+        forreturn = forreturn +" "+ whileStat(file_counters)
     elif(token == "switchcasetk"):
-        word, token = lexer(file_counters)
-        print(word+" "+token)
-        switchcaseStat(file_counters)
+        #word, token = lexer(file_counters)
+        #print(word+" "+token)
+        forreturn = forreturn +" "+ switchcaseStat(file_counters)
     elif(token == "forecasetk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        forcaseStat(file_counters)
+        forreturn = forreturn +" "+ forcaseStat(file_counters)
     elif(token == "incasetk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        incaseStat(file_counters)
+        forreturn = forreturn +" "+ incaseStat(file_counters)
     elif(token =="calltk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        callStat(file_counters)
+        forreturn = forreturn +" "+ callStat(file_counters)
     elif(token == "returntk"):
-        word, token = lexer(file_counters) ############################################!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        print(word+" "+token)              ############################################!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        returnStat(file_counters)
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        forreturn = forreturn +" "+ returnStat(file_counters)
     elif(token == "inputtk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        inputStat(file_counters)
+        forreturn = forreturn +" "+ inputStat(file_counters)
     elif(token == "printtk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        printStat(file_counters)
+        forreturn = forreturn +" "+ printStat(file_counters)
+    elif(word in strict_words):
+        print("'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+
+    print(forreturn)
+    return forreturn
 #============ STATEMENT ===================   
 
+#============ ASGNSTAT ===================
 def asgnStat(file_counters):
-    print("asgn......")
+    global word, token
+    forreturn = ""
 
+    if(token == "keywordtk"):
+        forreturn = forreturn +" "+ word
+
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(token == "asignementtk"):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            forreturn = forreturn +" "+ expression(file_counters)
+        else:
+            if(word in strict_words):
+                print("Keyword ':=' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "numbertk"):
+                print("Keyword ':=' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "keywordtk"):
+                print("':=' excpected here. Keyword '"+word+"' is not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            else:
+                print("Keyword ':=' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        if(word in strict_words):
+            print("Keyword ':=' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        elif(token == "numbertk"):
+            print("Keyword ':=' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        else:
+            print("Keyword ':=' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+
+    return forreturn
+#============ ASGNSTAT ===================
+
+#============ IFSTAT ===================
 def ifStat(file_counters):
-    print("if......")
+    global word, token
+    forreturn = ""
 
-def elseStat(file_counters):
-    print("else......")
+    if(token == "iftk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
 
+        if(word == '('):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ condition(file_counters)
+
+            if(word == ')'):
+                forreturn = forreturn +" "+ word
+               
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+                forreturn = forreturn +" "+ statements(file_counters)
+                forreturn = forreturn +" "+ elsepart(file_counters)
+            else:
+                print("Syntax Error. Keyword ')' expected here in order to finish if condition. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+        else:
+            print("Syntax Error. Keyword '(' expected here in order to start if condition. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword 'if' expected here in order to start if statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ IFSTAT ===================
+
+#============ ELSEPART ===================
+def elsepart(file_counters):
+    global word, token
+    forreturn = ""
+
+    if(token == "elsetk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        forreturn = forreturn +" "+ statements(file_counters)# 8a epistrefei epomeno
+    
+    return forreturn
+#============ ELSEPART ===================
+
+#============ WHILESTAT ===================
 def whileStat(file_counters):
-    print("while......")
+    global word, token
+    forreturn = ""
 
+    if(token == "whiletk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(word == '('):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ condition(file_counters)
+
+            if(word == ')'):
+                forreturn = forreturn +" "+ word
+               
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+                forreturn = forreturn +" "+ statements(file_counters)
+                #forreturn = forreturn +" "+ elsepart(file_counters)
+            else:
+                print("Syntax Error. Keyword ')' expected here in order to finish while condition. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+        else:
+            print("Syntax Error. Keyword '(' expected here in order to start while condition. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword 'while' expected here in order to start while statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ WHILESTAT ===================
+
+#============ SWITCHCASESTAT ===================
 def switchcaseStat(file_counters):
-    print("switchcase......")
+    global word, token
+    forreturn = ""
 
+    if(token == "switchcasetk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(token == "casetk"):
+        	word, token = lexer(file_counters)
+	        print(word+" "+token)
+
+	        if(word == '('):
+	            forreturn = forreturn +" "+ word
+
+	            word, token = lexer(file_counters)
+	            print(word+" "+token)
+
+	            forreturn = forreturn +" "+ condition(file_counters)
+
+	            if(word == ')'):
+	                forreturn = forreturn +" "+ word
+	               
+	                word, token = lexer(file_counters)
+	                print(word+" "+token)
+
+	                forreturn = forreturn +" "+ statements(file_counters)
+	                #forreturn = forreturn +" "+ elsepart(file_counters)
+	            else:
+	                print("Syntax Error. Keyword ')' expected here in order to finish case condition. Error at line: "+str(file_counters[1])+
+	                ",column: " +(str(file_counters[4] - len(word))))
+	                file.close()
+	                sys.exit()
+	        else:
+	            print("Syntax Error. Keyword '(' expected here in order to start case condition. Error at line: "+str(file_counters[1])+
+	            ",column: " +(str(file_counters[4] - len(word))))
+	            file.close()
+	            sys.exit()
+	    else:
+	    	if(token == "defaulttk"):
+	    		word, token = lexer(file_counters)
+                print(word+" "+token)
+
+                forreturn = forreturn +" "+ statements(file_counters)
+            else:
+            	print("Syntax Error. Switchcase must have default statements. Error at line: "+str(file_counters[1])+
+	            ",column: " +(str(file_counters[4] - len(word))))
+	            file.close()
+	            sys.exit()
+    else:
+        print("Syntax Error. Keyword 'switchcase' expected here in order to start switchcase statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ SWITCHCASESTAT ===================
+
+#============ FORCASESTAT ===================
 def forcaseStat(file_counters):
-    print("forcase......")   
+    global word, token
+    forreturn = ""
 
+    if(token == "forcasetk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(token == "casetk"):
+        	word, token = lexer(file_counters)
+	        print(word+" "+token)
+
+	        if(word == '('):
+	            forreturn = forreturn +" "+ word
+
+	            word, token = lexer(file_counters)
+	            print(word+" "+token)
+
+	            forreturn = forreturn +" "+ condition(file_counters)
+
+	            if(word == ')'):
+	                forreturn = forreturn +" "+ word
+	               
+	                word, token = lexer(file_counters)
+	                print(word+" "+token)
+
+	                forreturn = forreturn +" "+ statements(file_counters)
+	                #forreturn = forreturn +" "+ elsepart(file_counters)
+	            else:
+	                print("Syntax Error. Keyword ')' expected here in order to finish case condition. Error at line: "+str(file_counters[1])+
+	                ",column: " +(str(file_counters[4] - len(word))))
+	                file.close()
+	                sys.exit()
+	        else:
+	            print("Syntax Error. Keyword '(' expected here in order to start case condition. Error at line: "+str(file_counters[1])+
+	            ",column: " +(str(file_counters[4] - len(word))))
+	            file.close()
+	            sys.exit()
+	    else:
+	    	if(token == "defaulttk"):
+	    		word, token = lexer(file_counters)
+                print(word+" "+token)
+
+                forreturn = forreturn +" "+ statements(file_counters)
+            else:
+            	print("Syntax Error. Forcase must have default statements. Error at line: "+str(file_counters[1])+
+	            ",column: " +(str(file_counters[4] - len(word))))
+	            file.close()
+	            sys.exit()
+    else:
+        print("Syntax Error. Keyword 'forcase' expected here in order to start forcase statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ FORCASESTAT ===================
+
+#============ INCASESTAT ===================
 def incaseStat(file_counters):
-    print("incase......")
+    global word, token
+    forreturn = ""
 
-#============ RETURN ===================  
+    if(token == "incasetk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(token == "casetk"):
+        	word, token = lexer(file_counters)
+	        print(word+" "+token)
+
+	        if(word == '('):
+	            forreturn = forreturn +" "+ word
+
+	            word, token = lexer(file_counters)
+	            print(word+" "+token)
+
+	            forreturn = forreturn +" "+ condition(file_counters)
+
+	            if(word == ')'):
+	                forreturn = forreturn +" "+ word
+	               
+	                word, token = lexer(file_counters)
+	                print(word+" "+token)
+
+	                forreturn = forreturn +" "+ statements(file_counters)
+	                #forreturn = forreturn +" "+ elsepart(file_counters)
+	            else:
+	                print("Syntax Error. Keyword ')' expected here in order to finish case condition. Error at line: "+str(file_counters[1])+
+	                ",column: " +(str(file_counters[4] - len(word))))
+	                file.close()
+	                sys.exit()
+	        else:
+	            print("Syntax Error. Keyword '(' expected here in order to start case condition. Error at line: "+str(file_counters[1])+
+	            ",column: " +(str(file_counters[4] - len(word))))
+	            file.close()
+	            sys.exit()
+	    else:
+        	print("Syntax Error. Incase can not be empty. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword 'incase' expected here in order to start incase statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ INCASESTAT ===================
+
+#============ RETURNSTAT ===================  
 def returnStat(file_counters):
     global word,token
     
-    forreturn = []
-
-    #word, token = lexer(file_counters)   ############################################!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    #print(word+" "+token)                ############################################!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    forreturn = ""
 
     if(word == '('):
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        forreturn = expression(file_counters)
-        print(forreturn)
+        forreturn = forreturn +" "+ expression(file_counters)       
 
         if(word == ')'):
             word, token = lexer(file_counters)
-            print(word+" "+token)
         else:
             print("Syntax Error. Keyword ')' expected here in order to finish return expression. Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
@@ -583,38 +904,194 @@ def returnStat(file_counters):
         sys.exit()
 
     return forreturn
-#============ RETURN ===================  
+#============ RETURNSTAT ======================  
 
+#============ CALLSTAT ====================== 
 def callStat(file_counters):
-    print("call......")
+    global word, token
+    forreturn = ""
 
+    if(token == "calltk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(token == "keywordtk"):
+        	word, token = lexer(file_counters)
+	        print(word+" "+token)
+
+	        if(word == '('):
+	            forreturn = forreturn +" "+ word
+
+	            word, token = lexer(file_counters)
+	            print(word+" "+token)
+
+	            forreturn = forreturn +" "+ actualparlist(file_counters)
+
+	            if(word == ')'):
+	                forreturn = forreturn +" "+ word
+	               
+	                word, token = lexer(file_counters)
+	                print(word+" "+token)
+
+	                #forreturn = forreturn +" "+ statements(file_counters)
+	                #forreturn = forreturn +" "+ elsepart(file_counters)
+	            else:
+	                print("Syntax Error. Keyword ')' expected here in order to finish case condition. Error at line: "+str(file_counters[1])+
+	                ",column: " +(str(file_counters[4] - len(word))))
+	                file.close()
+	                sys.exit()
+	        else:
+	            print("Syntax Error. Keyword '(' expected here in order to start case condition. Error at line: "+str(file_counters[1])+
+	            ",column: " +(str(file_counters[4] - len(word))))
+	            file.close()
+	            sys.exit()
+	    else:
+        	print("Syntax Error. Incase can not be empty. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword 'call' expected here in order to start call statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ CALLSTAT ======================
+
+#============ PRINTSTAT ======================
 def printStat(file_counters):
-    print("print......")
+    global word, token
+    forreturn = ""
 
+    if(token == "printtk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        if(word == '('):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ expression(file_counters)
+
+            if(word == ')'):
+                forreturn = forreturn +" "+ word
+               
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+                #forreturn = forreturn +" "+ statements(file_counters)
+                #forreturn = forreturn +" "+ elsepart(file_counters)
+            else:
+                print("Syntax Error. Keyword ')' expected here in order to finish print expression. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+        else:
+            print("Syntax Error. Keyword '(' expected here in order to start print expression. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword 'print' expected here in order to start print statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ PRINTSTAT ======================
+
+#============ INPUTSTAT ======================
 def inputStat(file_counters):
-    print("input......")
+    global word, token
+    forreturn = ""
+
+    if(token == "inputtk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        if(word == '('):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            if(token == "keywordtk"):
+            	forreturn = forreturn +" "+ word
+
+	            word, token = lexer(file_counters)
+	            print(word+" "+token)
+	            if(word == ')'):
+	                forreturn = forreturn +" "+ word
+	               
+	                word, token = lexer(file_counters)
+	                print(word+" "+token)
+
+	                #forreturn = forreturn +" "+ statements(file_counters)
+	                #forreturn = forreturn +" "+ elsepart(file_counters)
+	            else:
+	                print("Syntax Error. Keyword ')' expected here in order to finish input expression. Error at line: "+str(file_counters[1])+
+	                ",column: " +(str(file_counters[4] - len(word))))
+	                file.close()
+	                sys.exit()
+	        else:
+	        	if(word in strict_words):
+	                print("'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+	                ",column: " +(str(file_counters[4] - len(word))))
+	            elif(token == "numbertk"):
+	                print("Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+	                ",column: " +(str(file_counters[4] - len(word))))
+	            else:
+	                print("Keyword ?????? excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+	                ",column: " +(str(file_counters[4] - len(word))))
+	            file.close()
+	            sys.exit()
+        else:
+            print("Syntax Error. Keyword '(' expected here in order to start input expression. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword 'input' expected here in order to start input statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ INPUTSTAT ======================
 
 #============ ACTUALPARLIST ===================
 def actualparlist(file_counters):
     global word, token
-    forreturn = []
+    forreturn = ""
     flag = token
+    insout, commas = 0, 0
 
     if((token == "intk") or (token == "inouttk")):
+        insout += 1
+        forreturn = forreturn +" "+ word
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        forreturn.append(actualparitem(file_counters,flag))
-        word, token = lexer(file_counters)
-        print(word+" "+token)
+        forreturn = forreturn +" "+ actualparitem(file_counters,flag,insout,commas)
 
+        if(word != ','):
+            if((token == "intk") or (token == "inouttk")):
+                
+                print("Syntax Error. Keyword ',' was expected at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))) +" in order to add more parameters")
+                file.close()
+                sys.exit()
         while(word == ','):
-            forreturn.append(word)
+            commas += 1
+            forreturn = forreturn +" "+ word
             word, token = lexer(file_counters)
-            print(word+" "+token)
+            flag = token
+            forreturn = forreturn +" "+ word
             
-            forreturn.append(actualparitem(file_counters,flag))
-            if(word != ','):
+            forreturn = forreturn +" "+ actualparitem(file_counters,flag,insout,commas)
+            if(word == ')'):
+                break
+            elif(word != ','):
                 print("Syntax Error. Keyword ',' was expected at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))) +" in order to add more parameters")
                 file.close()
@@ -624,30 +1101,28 @@ def actualparlist(file_counters):
 #============ ACTUALPARLIST ===================
 
 #============ ACTUALPARITEM ===================
-def actualparitem(file_counters,flag):
+def actualparitem(file_counters,flag,insout,commas):
     global word, token
-    forreturn = []
+    forreturn = ""
     listappend = ""
 
     if(flag == "intk"):
-        forreturn.append(word)
-        word, token = lexer(file_counters)
-        print(word+" "+token)
+        if(insout <= commas):
+            word, token = lexer(file_counters)
+            print(word+" "+token)
 
-        forreturn.append(expression(file_counters))
+        forreturn = forreturn +" "+ expression(file_counters)
         listappend = listToString(forreturn)
         ins.append(listappend)
 
-        word, token = lexer(file_counters)
-        print(word+" "+token)
-
     elif(flag == "inouttk"):
-        forreturn.append(word)
-        word, token = lexer(file_counters)
-        print(word+" "+token)
 
+        if(insout <= commas):
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            
         if(token == "keywordtk"):
-            forreturn.append(word)
+            forreturn = forreturn +" "+ word
             word, token = lexer(file_counters)
             print(word+" "+token)
 
@@ -656,81 +1131,225 @@ def actualparitem(file_counters,flag):
             ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
-
+    else:
+        print("Syntax Error. Keyword 'in/inout' was expected at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))) +" in order to add more parameters")
+        file.close()
+        sys.exit()
     return forreturn
 #============ ACTUALPARITEM ===================
 
+#============ CONDITION =======================
+def condition(file_counters):
+    global word,token
+    forreturn = ""
 
-#============ EXPRESION =================== 
+    forreturn = forreturn +" "+ boolterm(file_counters)
+
+    while(token == "ortk"):
+        forreturn = forreturn +" "+ word
+
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        
+        forreturn = forreturn +" "+ boolterm(file_counters)
+            
+    return forreturn
+#============ CONDITION =======================
+
+#============ BOOLTERM =======================
+def boolterm(file_counters):
+    global word,token
+    forreturn = ""
+
+    forreturn = forreturn +" "+ boolfactor(file_counters)
+
+    while(token == "andtk"):
+        forreturn = forreturn +" "+ word
+
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        
+        forreturn = forreturn +" "+ boolfactor(file_counters)
+            
+    return forreturn
+#============ BOOLTERM =======================
+
+#============ BOOLFACTOR =======================
+def boolfactor(file_counters):
+    global word,token
+    forreturn = ""
+
+    if(token == "nottk"):
+        forreturn = forreturn +" "+ word
+
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(word == '['):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            forreturn = forreturn +" "+ condition(file_counters)
+
+            if(word == ']'):
+                forreturn = forreturn +" "+ word
+
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+            else:
+                if(word in strict_words):
+                    print("Syntax Error. Keyword ']' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                    ",column: " +(str(file_counters[4] - len(word))))
+                elif(token == "numbertk"):
+                    print("Syntax Error. Keyword ']' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                    ",column: " +(str(file_counters[4] - len(word))))
+                elif(token == "keywordtk"):
+                    print("Syntax Error. Keyword ']' excpected here. Keyword are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                    ",column: " +(str(file_counters[4] - len(word))))
+                else:
+                    print("Syntax Error. Keyword ']' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                    ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+        else:
+            if(word in strict_words):
+                print("Syntax Error. Keyword '[' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "numbertk"):
+                print("Syntax Error. Keyword '[' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "keywordtk"):
+                print("Syntax Error. Keyword '[' excpected here. Keyword are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            else:
+                print("Syntax Error. Keyword '[' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+
+    elif(word == '['):
+        forreturn = forreturn +" "+ word
+
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        forreturn = forreturn +" "+ condition(file_counters)
+
+        if(word == ']'):
+                forreturn = forreturn +" "+ word
+
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+        else:
+            if(word in strict_words):
+                print("Syntax Error. Keyword ']' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "numbertk"):
+                print("Syntax Error. Keyword ']' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "keywordtk"):
+                print("Syntax Error. Keyword ']' excpected here. Keyword are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            else:
+                print("Syntax Error. Keyword ']' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    #expression
+    else:
+
+        forreturn = forreturn +" "+ expression(file_counters)
+
+        if(token == "relOperatortk"):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ expression(file_counters)
+        else:
+            if(word in strict_words):
+                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "numbertk"):
+                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "keywordtk"):
+                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Keyword are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            else:
+                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+
+    return forreturn
+#============ BOOLFACTOR =======================
+
+#============ EXPRESION =======================
 def expression(file_counters):
     global word,token
 
-    forreturn = []
-    temp = optionalSign(file_counters)
-    print(temp)
+    forreturn = ""
 
-    if(temp != []):
-    	forreturn.append(temp)
-    #forreturn.append(optionalSign(file_counters))
-    forreturn.append(term(file_counters))
+    forreturn = forreturn +" "+ optionalSign(file_counters)
+    forreturn = forreturn +" "+ term(file_counters)
 
     while(token == "addOperatortk"):
 
-        forreturn.append(word)
+        forreturn = forreturn +" "+ word
         
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        forreturn.append(term(file_counters))
+        forreturn = forreturn +" "+ term(file_counters)
 
-    print(forreturn)
+
     return forreturn
 #============ EXPRESION =================== 
 
-#============ TERM =================== 
+#============ TERM ======================== 
 def term(file_counters):
     global word,token
 
-    forreturn = []
+    forreturn = ""
 
-    forreturn.append(factor(file_counters))
-    #print(forreturn)
+    forreturn = forreturn +" "+ factor(file_counters)
     
     while(token == "mulOperatortk"):
-        forreturn.append(word)
+        forreturn = forreturn +" "+ word
 
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        forreturn.append(factor(file_counters))
+        forreturn = forreturn +" "+ factor(file_counters)
+    
+    return forreturn
 
-    return forreturn[0]         ################################### no return
-
-#============ TERM =================== 
+#============ TERM ===================== 
 
 #============ FACTOR =================== 
 def factor(file_counters):
     global word,token
-    forreturn = []
+    forreturn = ""
 
     if(token == "numbertk"):
-
-        forreturn.append(word)
+        forreturn = forreturn +" "+ word
         word, token = lexer(file_counters)
         print(word+" "+token)
     
     elif(word == '('):
-        forreturn.append(word)
+        forreturn = forreturn +" "+ word
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        forreturn.append(expression(file_counters))
-        
-        #word, token = lexer(file_counters)      ########!!!!!!!!!!!!!!!###########
-        #print(word+" "+token)
+        forreturn = forreturn +" "+ expression(file_counters)
         
         if(word == ')'):
-            forreturn.append(word)
+            forreturn = forreturn +" "+ word
             word, token = lexer(file_counters)
             print(word+" "+token)
         else:
@@ -740,51 +1359,73 @@ def factor(file_counters):
             sys.exit()
     
     elif(token == "keywordtk"): 
-        forreturn.append(word)
+        forreturn = forreturn +" "+ word
         word, token = lexer(file_counters)
         print(word+" "+token)
-        forreturn.append(idtail(file_counters))
-    
-    return forreturn[0]
+        forreturn = forreturn +" "+ idtail(file_counters)
+
+    #Errors below
+    elif(token in strict_words):
+        print("Strict words' like '"+word+"' are not acceptable as factors. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    if(forreturn == []):
+        print("Syntax Error. Statement can not be none. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))                                         #!!!!!!!!!!!!!#
+        file.close()
+        sys.exit()
+    else:   
+        return forreturn
 #============ FACTOR ===================    
 
 #============ IDTAIL ===================
 def idtail(file_counters):
     global word,token
-    forreturn = []
-    if(word == '('):
-        forreturn.append(word)
+    forreturn = ""
+    
+    if((token == "intk") or (token =="inouttk")):
+        print("Syntax Error. Keyword '(' expected here. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    elif(word in strict_words):
+        print("Strict words' like '"+word+"' are not acceptable as factors. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    elif(word == '('):
+        forreturn = forreturn +" "+ word
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        forreturn.append(actualparlist())
+        forreturn = forreturn +" "+ actualparlist(file_counters)
 
         if(word == ')'):
-            forreturn.append(word)
+            forreturn = forreturn +" "+ word
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            return forreturn
         else:
             print("Syntax Error. Keyword ')' expected here. Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
-    #else:
-        #print("Syntax Error. Keyword '(' expected here. Error at line: "+str(file_counters[1])+
-        #",column: " +(str(file_counters[4] - len(word))))
-        #file.close()
-        #sys.exit()
+
     return forreturn
-#============ IDTAIL ===================
+#============ IDTAIL =========================
 
 #============ OPTIONALSIGN ===================
 def optionalSign(file_counters):
     global word, token
-    forreturn = []
+    forreturn = ""
 
     if(token == "addOperatortk"):
-    	forreturn.append(word)
+    	forreturn = forreturn +" "+ word
     	word, token = lexer(file_counters)
     	print(word+" "+token)
-    	return forreturn[0]
-    return forreturn
+    	return forreturn
+    return ""
 #============ OPTIONALSIGN ===================
 
 
