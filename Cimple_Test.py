@@ -54,7 +54,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col
 counterforblockcalls = 0
-file = load_file()
+#file = load_file()
 word, token, variables, ins, inouts = "","", list(), list(), list()
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
@@ -65,16 +65,13 @@ def advance(char, file_counters):
     file_counters[2] += 1  # col
     file_counters[4] += 1  # temporary column. It take the value '1' when file_counters[2]=1 (this happens when char = '\n' and lexer reads next char)
     if(file_counters[2] == 1):
-        #tmp = file_counters[2]
         file_counters[4] = 2
-    #print(repr(str(char)))
+
     if((char == "\n") and (char != '\t') and (char != '\r') and (char != '')):
+        print("here")
         file_counters[2] = 0  # col
         file_counters[1] += 1  # row
         file_counters[4] += 1
-        
-    #print("row = "+str(file_counters[1]))
-    #print("col = "+str(file_counters[2])+" coltmp: "+str(file_counters[4]))
 
 def lexer(file_counters):
     last_word = ""
@@ -110,7 +107,7 @@ def lexer(file_counters):
                 next_state = 8
             elif(char == '='):
                 next_state = 9
-            elif(char == '#'):  # kdkdkd. # askjfdj#
+            elif(char == '#'): 
                 comment_counter += 1
                 next_state = 10
             elif(char in "."):
@@ -118,8 +115,8 @@ def lexer(file_counters):
                 if(comment_counter != 1):
                     file_counters[3] = True
             else:
-                print("Invalid character: "+ char +". Error at line: "+str(file_counters[1])+
-                ",column: " +(str(file_counters[4] - len(word))))
+                print("Invalid character: "+ char +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] -1 - len(last_word))))
                 file.close()
                 sys.exit()
             last_word += char
@@ -142,19 +139,15 @@ def lexer(file_counters):
                 file_counters[2] = 0
             file_counters[4] -= 1
             if(last_word[-1] == '\n'):
-                #print("it goes back")
                 file_counters[1] -= 1
             if((not last_word[-1].isalpha()) and (not last_word[-1].isdigit())):
                 last_word = last_word[:-1]
-            
-            #print("!row = "+str(file_counters[1]))
-            #print("!col = "+str(file_counters[2]))
 
 
         if(state == keyIden):  # keywordIdentifier
-            if(len(last_word) >= 30):
-                print("Cimple's keywords must be under 30 characters. Error at line: "+str(file_counters[1])+
-                ",column: " +(str(file_counters[4] - len(word))))
+            if(len(last_word) > 30):
+                print("Cimple's keywords must be under 30 characters. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(last_word))))
                 file.close()
                 sys.exit()
             if(last_word == "program"):
@@ -221,7 +214,8 @@ def lexer(file_counters):
             return last_word, "relOperatortk"
         elif(last_word.isdigit()):
             if((int(last_word) < -4294967297) or (int(last_word) > 4294967295)):
-                print("Number out of bounds (-4.294.967.297 ,4.294.967.295)")
+                print("Number out of bounds (-4.294.967.297 ,4.294.967.295). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
                 file.close()
                 sys.exit()
             else:
@@ -253,8 +247,15 @@ def program(file_counters):
             print(word+" "+token)
             block(file_counters)
         else:
-            print("Program name expected. Although '"+word+"' found.\nError at line: "+str(file_counters[1])+
-            ",column: " +(str(file_counters[4] - len(word))))
+            if(word in strict_words):
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as program name.'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "numbertk"):
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as program name. Numbers are not acceptable here.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            else:
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as program name. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
     else:
@@ -368,7 +369,7 @@ def subprograms(file_counters):
 #============ SUBPROGRAM ================= 
 def subprogram(file_counters):
     global word, token 
-    #counterforblockcalls
+
     if(token == "functiontk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
@@ -382,9 +383,17 @@ def subprogram(file_counters):
                 if(word == ')'):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
-                    #counterforblockcalls += 1
                     block(file_counters)
-                    #counterforblockcalls -= 1
+                else:
+                    print("Syntax Error. Keyword ')' expected here in order to finish function's parameteres list. Error at line: "+str(file_counters[1])+
+                    ",column: " +(str(file_counters[4] - len(word))))
+                    file.close()
+                    sys.exit()  
+            else:
+                print("Syntax Error. Keyword '(' expected here in order to start function's parameteres list. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()  
         else:
             illegal_function_names("function")
     elif(token == "proceduretk"):
@@ -400,9 +409,17 @@ def subprogram(file_counters):
                 if(word == ')'):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
-                    #counterforblockcalls += 1
                     block(file_counters)
-                    #counterforblockcalls -= 1
+                else:
+                    print("Syntax Error. Keyword ')' expected here in order to finish procedure's parameteres list. Error at line: "+str(file_counters[1])+
+                    ",column: " +(str(file_counters[4] - len(word))))
+                    file.close()
+                    sys.exit()  
+            else:
+                print("Syntax Error. Keyword '(' expected here in order to start procedure's parameteres list. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
         else:
          illegal_function_names("procedure")
     else:
@@ -451,8 +468,15 @@ def formalparitem(file_counters,flag):
             word, token = lexer(file_counters)
             print(word+" "+token)
         else:
-            print("Only keywords like ([a..z] or [a..z][A..Z] or [a..z][A..Z][0..9]) are allowed as procedure parameters. Error at line: "+str(file_counters[1])+
-            ",column: " +(str(file_counters[4] - len(word))))
+            if(word in strict_words):
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names.'Strict words' like '"+word+"' are not acceptable here. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "numbertk"):
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. Numbers are not acceptable here. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            else:
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. Symbols like '"+word+"' are not acceptable here. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
 #============ FORMALPARITEM ================
@@ -487,7 +511,7 @@ def statements(file_counters):
             sys.exit()
     else: 
         forreturn = forreturn +" "+ statement(file_counters)
-        #if(counterforblockcalls == 0):
+
         if(token == 'stoptk'):
             print("Program excited succesfully!")
             file.close()
@@ -514,6 +538,8 @@ def statement(file_counters):
         print(word+" "+token)
         forreturn = forreturn +" "+ asgnStat(file_counters)
     elif(token == "iftk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
         forreturn = forreturn +" "+ ifStat(file_counters)
     elif(token == "whiletk"):
         word, token = lexer(file_counters)
@@ -576,28 +602,28 @@ def asgnStat(file_counters):
             forreturn = forreturn +" "+ expression(file_counters)
         else:
             if(word in strict_words):
-                print("Keyword ':=' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Keyword ':=' excpected here. 'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "numbertk"):
-                print("Keyword ':=' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Keyword ':=' excpected here. Numbers are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "keywordtk"):
-                print("':=' excpected here. Keyword '"+word+"' is not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("':=' excpected here. Keyword '"+word+"' is not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             else:
-                print("Keyword ':=' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Keyword ':=' excpected here. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
     else:
         if(word in strict_words):
-            print("Keyword ':=' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+            print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names.'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
         elif(token == "numbertk"):
-            print("Keyword ':=' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+            print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. Numbers are not acceptable here.Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
         else:
-            print("Keyword ':=' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+            print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
         file.close()
         sys.exit()
@@ -610,41 +636,33 @@ def ifStat(file_counters):
     global word, token
     forreturn = ""
 
-    if(token == "iftk"):
+    if(word == '('):
+        forreturn = forreturn +" "+ word
+
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        if(word == '('):
-            forreturn = forreturn +" "+ word
+        forreturn = forreturn +" "+ condition(file_counters)
 
+        if(word == ')'):
+            forreturn = forreturn +" "+ word
+            
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            forreturn = forreturn +" "+ condition(file_counters)
-
-            if(word == ')'):
-                forreturn = forreturn +" "+ word
-               
-                word, token = lexer(file_counters)
-                print(word+" "+token)
-
-                forreturn = forreturn +" "+ statements(file_counters)
-                forreturn = forreturn +" "+ elsepart(file_counters)
-            else:
-                print("Syntax Error. Keyword ')' expected here in order to finish return condition. Error at line: "+str(file_counters[1])+
-                ",column: " +(str(file_counters[4] - len(word))))
-                file.close()
-                sys.exit()
+            forreturn = forreturn +" "+ statements(file_counters)
+            forreturn = forreturn +" "+ elsepart(file_counters)
         else:
-            print("Syntax Error. Keyword '(' expected here in order to start if condition. Error at line: "+str(file_counters[1])+
+            print("Syntax Error. Keyword ')' expected here in order to finish return condition. Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
     else:
-        print("Syntax Error. Keyword 'if' expected here in order to start if condition. Error at line: "+str(file_counters[1])+
+        print("Syntax Error. Keyword '(' expected here in order to start if condition. Error at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
         file.close()
         sys.exit()
+    
     
     return forreturn
 #============ IFSTAT ===================
@@ -663,17 +681,251 @@ def elsepart(file_counters):
     return forreturn
 #============ ELSEPART ===================
 
+#============ WHILESTAT ===================
 def whileStat(file_counters):
-    print("while......")
+    global word, token
+    forreturn = ""
 
+    word, token = lexer(file_counters)
+    print(word+" "+token)
+
+    if(word == '('):
+        forreturn = forreturn +" "+ word
+
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        forreturn = forreturn +" "+ condition(file_counters)
+
+        if(word == ')'):
+            forreturn = forreturn +" "+ word
+            
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ statements(file_counters)
+        else:
+            print("Syntax Error. Keyword ')' expected here in order to finish while condition. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword '(' expected here in order to start while condition. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    
+    return forreturn
+#============ WHILESTAT ===================
+
+#============ SWITCHCASESTAT ===================
 def switchcaseStat(file_counters):
-    print("switchcase......")
+    global word, token
+    forreturn = ""
 
+    if(token != "casetk"):
+        print("Syntax Error. Keyword 'case' excpected here in order to start switchcase statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+
+    while(token == "casetk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(word == '('):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ condition(file_counters)
+
+            if(word == ')'):
+                forreturn = forreturn +" "+ word
+                
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+                forreturn = forreturn +" "+ statements(file_counters)
+            else:
+                print("Syntax Error. Keyword ')' expected here in order to finish case condition. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+
+            
+        else:
+            print("Syntax Error. Keyword '(' expected here in order to start case condition. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    
+    if(token == "defaulttk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        forreturn = forreturn +" "+ statements(file_counters)
+    else:
+        print("Syntax Error. Keyword 'case' excpected here in order to finish switchcase statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ SWITCHCASESTAT ===================
+
+#============ FORCASESTAT ===================
 def forcaseStat(file_counters):
-    print("forcase......")   
+    global word, token
+    forreturn = ""
 
+    if(token != "casetk"):
+        print("Syntax Error. Keyword 'case' excpected here in order to start forcase statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+
+    while(token == "casetk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(word == '('):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ condition(file_counters)
+
+            if(word == ')'):
+                forreturn = forreturn +" "+ word
+                
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+                forreturn = forreturn +" "+ statements(file_counters)
+                #forreturn = forreturn +" "+ elsepart(file_counters)
+            else:
+                print("Syntax Error. Keyword ')' expected here in order to finish case condition. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+        else:
+            print("Syntax Error. Keyword '(' expected here in order to start case condition. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+
+    if(token == "defaulttk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        forreturn = forreturn +" "+ statements(file_counters)
+    else:
+        print("Syntax Error. Keyword 'case' excpected here in order to finish forcase statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ FORCASESTAT ===================   
+
+#============ INCASESTAT ===================
 def incaseStat(file_counters):
-    print("incase......")
+    global word, token
+    forreturn = ""
+
+    if(token != "casetk"):
+        print("Syntax Error. Keyword 'case' excpected here in order to start forcase statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+
+    while(token == "casetk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(word == '('):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ condition(file_counters)
+
+            if(word == ')'):
+                forreturn = forreturn +" "+ word
+                
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+                forreturn = forreturn +" "+ statements(file_counters)
+                #forreturn = forreturn +" "+ elsepart(file_counters)
+            else:
+                print("Syntax Error. Keyword ')' expected here in order to finish case condition. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+        else:
+            print("Syntax Error. Keyword '(' expected here in order to start case condition. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    
+    return forreturn
+#============ INCASESTAT ===================
+
+#============ CALLSTAT ====================== 
+def callStat(file_counters):
+    global word, token
+    forreturn = ""
+
+
+    if(token == "keywordtk"):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(word == '('):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            forreturn = forreturn +" "+ actualparlist(file_counters)
+
+            if(word == ')'):
+                forreturn = forreturn +" "+ word
+                
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+            else:
+                print("Syntax Error. Keyword ')' expected here. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+        else:
+            print("Syntax Error. Keyword '(' expected here. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        if(word in strict_words):
+            print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as function/procedure names.'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        elif(token == "numbertk"):
+            print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as function/procedure names. Numbers are not acceptable here.Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        else:
+            print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as function/procedure names. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ CALLSTAT ======================
 
 #============ RETURNSTAT ===================  
 def returnStat(file_counters):
@@ -690,27 +942,99 @@ def returnStat(file_counters):
         if(word == ')'):
             word, token = lexer(file_counters)
         else:
-            print("Syntax Error. Keyword ')' expected here in order to finish return expression. Error at line: "+str(file_counters[1])+
+            print("Syntax Error. Keyword ')' expected here in order to finish return statement. Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
     else:
-        print("Syntax Error. Keyword '(' expected here in order to start return expression. Error at line: "+str(file_counters[1])+
+        print("Syntax Error. Keyword '(' expected here in order to start return statement. Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
         file.close()
         sys.exit()
 
     return forreturn
-#============ RETURNSTAT ======================  
+#============ RETURNSTAT ======================
 
-def callStat(file_counters):
-    print("call......")
-
-def printStat(file_counters):
-    print("print......")
-
+#============ INPUTSTAT =======================
 def inputStat(file_counters):
-    print("input......")
+    global word, token
+    forreturn = ""
+
+    if(word == '('):
+        forreturn = forreturn +" "+ word
+
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        if(token == "keywordtk"):
+            forreturn = forreturn +" "+ word
+
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+            if(word == ')'):
+                forreturn = forreturn +" "+ word
+                
+                word, token = lexer(file_counters)
+                print(word+" "+token)
+
+            else:
+                print("Syntax Error. Keyword ')' expected here in order to finish input statement. Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+        else:
+            if(word in strict_words):
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variables.'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(token == "numbertk"):
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variables. Numbers are not acceptable here.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            else:
+                print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variables. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
+                ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword '(' expected here in order to start input statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ INPUTSTAT ======================
+
+#============ PRINTSTAT ======================
+def printStat(file_counters):
+    global word, token
+    forreturn = ""
+
+    if(word == '('):
+        forreturn = forreturn +" "+ word
+
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+
+        forreturn = forreturn +" "+ expression(file_counters)
+
+        if(word == ')'):
+            forreturn = forreturn +" "+ word
+            
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+        else:
+            print("Syntax Error. Keyword ')' expected here in order to finish print statement. Error at line: "+str(file_counters[1])+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+    else:
+        print("Syntax Error. Keyword '(' expected here in order to start print statement. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    
+    return forreturn
+#============ PRINTSTAT ======================
 
 #============ ACTUALPARLIST ===================
 def actualparlist(file_counters):
@@ -780,7 +1104,7 @@ def actualparitem(file_counters,flag,insout,commas):
             print(word+" "+token)
 
         else:
-            print("Only keywords like ([a..z] or [a..z][A..Z] or [a..z][A..Z][0..9]) are allowed as procedure parameters. Error at line: "+str(file_counters[1])+
+            print("Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as procedure parameters. Error at line: "+str(file_counters[1])+
             ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
@@ -854,31 +1178,31 @@ def boolfactor(file_counters):
 
             else:
                 if(word in strict_words):
-                    print("Syntax Error. Keyword ']' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                    print("Syntax Error. Keyword ']' excpected here. 'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
                     ",column: " +(str(file_counters[4] - len(word))))
                 elif(token == "numbertk"):
-                    print("Syntax Error. Keyword ']' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                    print("Syntax Error. Keyword ']' excpected here. Numbers are not acceptable heree.Error at line: "+str(file_counters[1])+
                     ",column: " +(str(file_counters[4] - len(word))))
                 elif(token == "keywordtk"):
-                    print("Syntax Error. Keyword ']' excpected here. Keyword are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                    print("Syntax Error. Keyword ']' excpected here. Keyword are not acceptable here.Error at line: "+str(file_counters[1])+
                     ",column: " +(str(file_counters[4] - len(word))))
                 else:
-                    print("Syntax Error. Keyword ']' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                    print("Syntax Error. Keyword ']' excpected here. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
                     ",column: " +(str(file_counters[4] - len(word))))
                 file.close()
                 sys.exit()
         else:
             if(word in strict_words):
-                print("Syntax Error. Keyword '[' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Keyword '[' excpected here. 'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "numbertk"):
-                print("Syntax Error. Keyword '[' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Keyword '[' excpected here. Numbers are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "keywordtk"):
-                print("Syntax Error. Keyword '[' excpected here. Keyword are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Keyword '[' excpected here. Keyword are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             else:
-                print("Syntax Error. Keyword '[' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Keyword '[' excpected here. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
@@ -898,16 +1222,16 @@ def boolfactor(file_counters):
 
         else:
             if(word in strict_words):
-                print("Syntax Error. Keyword ']' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Keyword ']' excpected here. 'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "numbertk"):
-                print("Syntax Error. Keyword ']' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Keyword ']' excpected here. Numbers are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "keywordtk"):
-                print("Syntax Error. Keyword ']' excpected here. Keyword are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Keyword ']' excpected here. Keyword are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             else:
-                print("Syntax Error. Keyword ']' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Keyword ']' excpected here. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
@@ -925,16 +1249,16 @@ def boolfactor(file_counters):
             forreturn = forreturn +" "+ expression(file_counters)
         else:
             if(word in strict_words):
-                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. 'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. 'Strict words' like '"+word+"' are not acceptable here. Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "numbertk"):
-                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Numbers are not acceptable here. Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "keywordtk"):
-                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Keyword are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Keyword are not acceptable here. Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             else:
-                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+                print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. Symbols like '"+word+"' are not acceptable here. Error at line: "+str(file_counters[1])+
                 ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
@@ -1018,14 +1342,19 @@ def factor(file_counters):
         forreturn = forreturn +" "+ idtail(file_counters)
 
     #Errors below
-    elif(token in strict_words):
-        print("Strict words' like '"+word+"' are not acceptable as factors. Error at line: "+str(file_counters[1])+
+    elif(word in strict_words):
+        print("Syntax Error. Strict words' like '"+word+"' are not acceptable as factors. Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    elif(word in ")[]}{:=+-/<=>=*"):        
+        print("Syntax Error. Symbols like '"+word+"' are not acceptable here. Error at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
         file.close()
         sys.exit()
     if(forreturn == []):
         print("Syntax Error. Statement can not be none. Error at line: "+str(file_counters[1])+
-        ",column: " +(str(file_counters[4] - len(word))))                                         #!!!!!!!!!!!!!#
+        ",column: " +(str(file_counters[4] - len(word))))
         file.close()
         sys.exit()
     else:   
@@ -1082,8 +1411,6 @@ def optionalSign(file_counters):
 #============ OPTIONALSIGN ===================
 
 
-
-	
 # Function to convert lists to strings
 def listToString(s):
 	# initialize an empty string 
@@ -1093,7 +1420,6 @@ def listToString(s):
 		str1 += ele 
 	# return string 
 	return str1 
-		
 
 
 #======================================================================
@@ -1104,13 +1430,13 @@ def listToString(s):
 def illegal_variables():
     global word,token,variables
     if(word in strict_words):
-        print("Keyword expected after ','. 'Strict words' like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. 'Strict words' like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
     elif(token == "numbertk"):
-        print("Keyword expected after ','. Numbers are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. Numbers are not acceptable as variable names.Error at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
     else:
-        print("Keyword expected after ','. Symbols like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
+        print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. Symbols like '"+word+"' are not acceptable as variable names.Error at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
     file.close()
     sys.exit()
@@ -1118,14 +1444,15 @@ def illegal_variables():
 # Illegal function names for Subprogram method
 def illegal_function_names(functionOrProcedure):
     global word,token,variables
-    if(token == "numbertk"):
-        print("Keyword expected here. Numbers are not acceptable as "+functionOrProcedure+" names. Error at line: "+str(file_counters[1])+
+    
+    if(word in strict_words):
+        print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names.'Strict words' like '"+word+"' are not acceptable as "+functionOrProcedure+" names. Error at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
-    elif(token in strict_words):
-        print("Keyword expected here. 'Strict words' like '"+word+"' are not acceptable as "+functionOrProcedure+" names. Error at line: "+str(file_counters[1])+
+    elif(token == "numbertk"):
+        print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. Numbers are not acceptable as "+functionOrProcedure+" names. Error at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
     else:
-        print("Keyword expected here. Symbols like '"+word+"' are not acceptable as "+functionOrProcedure+" names. Error at line: "+str(file_counters[1])+
+        print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as variable names. Symbols like '"+word+"' are not acceptable as "+functionOrProcedure+" names. Error at line: "+str(file_counters[1])+
         ",column: " +(str(file_counters[4] - len(word))))
     file.close()
     sys.exit()
@@ -1134,6 +1461,7 @@ def illegal_function_names(functionOrProcedure):
 #======================================================================
 
 #==================== MAIN ============================================
+file = load_file()
 word, token = lexer(file_counters)
 print(word+" "+token)
 program(file_counters)
