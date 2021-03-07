@@ -1447,6 +1447,29 @@ def listToString(s):
 #                   Error Handler Methods
 #======================================================================
 
+'''def illegal(xword,ytoken):
+	global word,token,strict_words
+
+	temp = strict_words
+
+	temp.remove(xword)
+	if(word in temp):
+        print("'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    elif((token == "numbertk") and (ytoken != token)):
+        print("Numbers are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    elif((token == "keywordtk") and (xword != word)):
+        print("Keyword '"+xword+"' excpected here. Keyword like '"+word+"' is not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    elif(word != xword):
+    	print("Keyword '"+xword+"' excpected here. Symbols like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+        ",column: " +(str(file_counters[4] - len(word))))
+    file.close()
+    sys.exit()
+
+'''
+
 # Illegal variable names for VarList method
 def illegal_variables():
     global word,token,variables
