@@ -9,15 +9,16 @@ program pr #asdj# # skfjfkdld#
     declare  x,y;
     declare z;
 
-    x:=y;
+    
 
     function f(in x , y)
-        #return (x + y * 3);#
-        #return (-3 + y -z + 5 + 4 * 8 / 3);#
-        #return (a (in (xkkk7 + 3)/5, in a));#
+    {
+        return (x + y * 3);
+        return (-3 + y -z + 5 + 4 * 8 / 3);
+        return (a (in (xkkk7 + 3)/5, in a));
 
-        #if([not [a > x]])
-            return (x + y * 3);#
+        if([not [a > x]])
+            return (x + y * 3);
         #x:=3;#
 
         declare d,y,z;
@@ -31,11 +32,12 @@ program pr #asdj# # skfjfkdld#
             return (a (in (xkkk7 + 3)/5, in a));#
         
         declare l;
+    };
     
     declare o;
 
      function f(in x , y)
-        while (x < >0)
+        while (x <>0)
             x:=y
     
 

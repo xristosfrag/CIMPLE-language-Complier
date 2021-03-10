@@ -12,3 +12,5 @@ program fibonacci
         input(x);
         print(fibonacci(in x));
     }.
+
+    print

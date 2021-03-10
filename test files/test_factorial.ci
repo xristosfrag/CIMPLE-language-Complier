@@ -4,7 +4,7 @@ program factorial
     declare x;
     declare i,fact;
 
-    # m a i n #
+    # m .a i n #
     {
         input(x);
         fact := 1;
@@ -12,7 +12,7 @@ program factorial
         while (i<=x)
         {
             fact := fact*i;
-            i := i+1;
+            i := i+1
         };
-        print(fact);
+        print(fact)
     }.

@@ -1,5 +1,6 @@
 
-#afto to programa elegxei th swsth domh tou programmatos#
+#afto to programa elegxei mia periptwsh tou lexer#
+
 
 
 program pr #asdj# # skfjfkdld#
@@ -9,7 +10,7 @@ program pr #asdj# # skfjfkdld#
     declare  x,y;
     declare z;
 
-    x:=y;
+    
 
     function f(in x , y)
         #return (x + y * 3);#
