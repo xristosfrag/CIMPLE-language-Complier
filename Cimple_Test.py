@@ -10,15 +10,6 @@ import sys
 #=============================================================
 #                   Lektikos Analyths
 #=============================================================
-def load_file():
-    while True:
-        try:
-            file = open(input("Please type your C-imple file: "), "r")
-            return file
-        except:
-            print("Error: File does not appear to exist. Try again")
-
-
 start = 0
 dig = 1
 number = -1
@@ -40,7 +31,7 @@ stop = -11
 
 #        numbers letters  +-            */           {}()[]       ,;         :        <        >        =           #      " \n\t\r"  #.
 states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn,    smaller, larger,  relOp,      rem,     start,   stop],  # start 0
-          [dig,   number, number,      number,      number,      number,    number,  number,  number,  number,     error,   number,  stop],  # dig 1
+          [dig,   number, number,      number,      number,      number,    number,  number,  number,  number,     number,  number,  stop],  # dig 1
           [idk,   idk,    keyIden,     keyIden,     keyIden,     keyIden,   keyIden, keyIden, keyIden, keyIden,    keyIden, keyIden, stop],  # idk 2
           [error, idk,    error,       error,       groupSymbol, error,     error,   error,   error,   assignment, error,   asgnStop,stop],  # asgn 3
           [relOp, relOp,  relOp,       relOp,       relOp,       relOp,     relOp,   error,   relOp,   relOp,      error,   relOp,   stop],  # smaller 4
@@ -48,12 +39,10 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
           [rem,   rem,    rem,         rem,         rem,         rem,       rem,     rem,     rem,     rem,        start,   rem,     rem]    # rem 6
           ]
 
-# !!!!!!!!!! check for double comment !!!!!!
-
 
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col, 
-word, token, variables, ins, inouts = "","", list(), list(), list()
+word, token, variables, ins, inouts, temp, elseflag, whileflag, var_counter = "","", list(), list(), list(), "", 0, 0, 0
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
 #----------------------------------
@@ -110,7 +99,15 @@ def lexer(file_counters):
             elif(char in "."):
                 next_state = 12
                 if(comment_counter != 1):
-                    file_counters[3] = True
+                    if(file.read(200) not in " "):
+                        print("Code / Comments after '.' character is/are not acceptable. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                        ",column: " +(str(file_counters[4] -1)))
+                        file.close()
+                        sys.exit()
+                    else:
+                        print("System exited successfully!")
+                        file.close()
+                        sys.exit()
             else:
                 if(comment_counter != 1):
                     print("Invalid character: "+ char +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -130,7 +127,7 @@ def lexer(file_counters):
 
         #------------------- end of automato --------------#
 
-        if((state == keyIden) or (state == number) or (state == asgnStop)): #final states.
+        if((state == keyIden) or (state == number) or (state == asgnStop) or ((state == relOp) and (last_word[-1] != '=') and (last_word != "<>"))): #final states.
             file_counters[0] -= 1
             file_counters[2] -= 1
             if(file_counters[2] < 0):
@@ -138,8 +135,10 @@ def lexer(file_counters):
             file_counters[4] -= 1
             if(last_word[-1] == '\n'):
                 file_counters[1] -= 1
-            if((not last_word[-1].isalpha()) and (not last_word[-1].isdigit())):
+            if((not last_word[-1].isalpha()) and (not last_word[-1].isdigit()) or (state == relOp)):
                 last_word = last_word[:-1]
+
+        
 
 
         if(state == keyIden):  # keywordIdentifier
@@ -223,29 +222,26 @@ def lexer(file_counters):
         else:
             return last_word, "errortk"
     else:
-        if(file.read(200) not in " "):
-            print("Code after '.' Character is not acceptable.")
-            file.close()
-            sys.exit()
-        else:
-            print("System exited successfully!")
-            file.close()
-            sys.exit()
+        print("System exited successfully!")
+        file.close()
+        sys.exit()
 
 #==================================================================
-#   Syntax Analysis
+#           Start of Syntaktikos Analyths
 #==================================================================
 
 #============ PROGRAM =================
 def program(file_counters):
     global word,token
+    program_name = ""
     if(token == "programtk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
+            program_name = word
             word, token = lexer(file_counters)
             print(word+" "+token)
-            block(file_counters)
+            block(file_counters,program_name)
         else:
             if(word in strict_words):
                 print("Syntax Error. Only keywords like ([a-zA-Z][a-zA-Z0-9]*) are allowed as program name.'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -266,54 +262,37 @@ def program(file_counters):
 #============ PROGRAM  ====================
 
 #============ BLOCK ================
-def block(file_counters):
-    global word,token
+def block(file_counters,program_name):
+    global word,token,temp
+
     declarations(file_counters)
     subprograms(file_counters)
+    if(program_name != ""):
+        genquad("begin_block",program_name,"","")
     statements(file_counters)
+    if(program_name != ""):
+        genquad("halt","","","")
+        genquad("end_block",program_name,"","")
 #============ BLOCK ================
 
 #============ DECLARATIONS ================  
 def declarations(file_counters):
-    global word,token
+    global word,token,temp
+
 
     while(token == "declaretk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
         varlist(file_counters)
-
+        
         if(word != ';'):
-            print("Keyword ';' was expected at line: "+str(int((file_counters[1] + 1) / 2))+
+            print("Syntax Error. Keyword ';' was expected at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))) +" in order to finish the declarations of variables")
             file.close()
             sys.exit()
         if(word == ';'):
             word, token = lexer(file_counters)
             print(word+" "+token)
-
-    if(token == "numbertk"):
-        print("Numbers are only acceptable in function block or main block.\nError at line: "+str(int((file_counters[1] + 1) / 2))+
-        ",column: " +(str(file_counters[4] - len(word))))
-        file.close()
-        sys.exit()
-    elif(token == "keywordtk"):
-        print("Keywords are unacceptable at this point of code. Error at line: "+str(int((file_counters[1] + 1) / 2))+
-        ",column: " +(str(file_counters[4] - len(word))))
-        file.close()
-        sys.exit()
-        
-    elif((token == "addOperatortk") or (token == "mulOperatortk") or (token == "groupSymboltk") or (token == "asgntk")
-        or (token == "asignementtk") or (token == "smallertk") or (token == "largertk") or (token == "relOperatortk")):
-        print("Symbols like '"+word+"' are only acceptable in function block or main block.\nError at line: "+str(int((file_counters[1] + 1) / 2))+
-        ",column: " +(str(file_counters[4] - len(word))))
-        file.close()
-        sys.exit()
-
-    elif((word == ';') or (word == ',')):
-        print("Symbol "+word+" is unacceptable at this point of code. Error at line: "+str(int((file_counters[1] + 1) / 2))+
-        ",column: " +(str(file_counters[4] - len(word))))
-        file.close()
-        sys.exit()
 #============ DECLARATIONS ================  
 
 #============ VARLIST =====================
@@ -368,12 +347,13 @@ def subprograms(file_counters):
 
 #============ SUBPROGRAM ================= 
 def subprogram(file_counters):
-    global word, token 
-
+    global word, token,temp
+    id = ""
     if(token == "functiontk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
+            id = word
             word, token = lexer(file_counters)
             print(word+" "+token)
             if(word == '('):
@@ -383,7 +363,14 @@ def subprogram(file_counters):
                 if(word == ')'):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
-                    block(file_counters)
+                    temp = "subprograms"   #connects subprogram with statements
+
+                    genquad("begin_block",id,"","")
+                    block(file_counters,"")
+                    genquad("end_block",id,"","")
+
+                    temp = ""
+                    return True
                 else:
                     print("Syntax Error. Keyword ')' expected here in order to finish function's parameteres list. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                     ",column: " +(str(file_counters[4] - len(word))))
@@ -400,6 +387,7 @@ def subprogram(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
+            id = word
             word, token = lexer(file_counters)
             print(word+" "+token)
             if(word == '('):
@@ -409,7 +397,15 @@ def subprogram(file_counters):
                 if(word == ')'):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
-                    block(file_counters)
+                    temp = "subprograms"    #connects subprogram with statements
+
+
+                    genquad("begin_block",id,"","")
+                    block(file_counters,"")
+                    genquad("end_block",id,"","")
+
+                    temp = ""
+                    return True
                 else:
                     print("Syntax Error. Keyword ')' expected here in order to finish procedure's parameteres list. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                     ",column: " +(str(file_counters[4] - len(word))))
@@ -421,7 +417,7 @@ def subprogram(file_counters):
                 file.close()
                 sys.exit()
         else:
-         illegal_function_names("procedure")
+            illegal_function_names("procedure")
     else:
         return False
 #============ SUBPROGRAM ===================
@@ -483,7 +479,7 @@ def formalparitem(file_counters,flag):
 
 #============ STATEMENTS ===================   
 def statements(file_counters):
-    global word,token
+    global word, token, temp, elseflag
     forreturn = ""
 
     if(token == "begintk"):
@@ -492,10 +488,12 @@ def statements(file_counters):
 
         forreturn = forreturn +" "+ statement(file_counters)
 
+
         while(word == ';'):
             word, token = lexer(file_counters)
             print(word+" "+token)
             forreturn = forreturn +" "+ statement(file_counters)
+
 
             if(token != "endtk"):
                 if(word != ';'):
@@ -503,28 +501,58 @@ def statements(file_counters):
                     ",column: " +(str(file_counters[4] - len(word))) +" in order to add one more statement")
                     file.close()
                     sys.exit()
+        
+        if(token == "endtk"):
+            word, token = lexer(file_counters)
+            print(word+" "+token)
 
-        if(token != "endtk"):
+            if(token == "declaretk"):
+                print("Syntax Error. Wrong program structure! The valid structure for the program is 1.declarations (if any)\n\
+2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
+                file.close()
+                sys.exit()
+
+        else:
             print("Keyword '}' expected here in order to finish statement/s. Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
             file.close()
             sys.exit()
-    else: 
-        forreturn = forreturn +" "+ statement(file_counters)
+        
+    else:   #///////// one statement //////////
 
-        if(token == 'stoptk'):
-            print("Program excited succesfully!")
-            file.close()
-            sys.exit()
+        forreturn = forreturn +" "+ statement(file_counters)
+        
         if(word != ';'):
             print("Syntax error. Keyword ';' was expected at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))) +" in order to finish with the statements")
             file.close()
             sys.exit()
         
-        word, token = lexer(file_counters)
-        print(word+" "+token)
-    
+        if(((word == ';') and (elseflag > 0))):
+            pass
+        else:
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+
+        elseflag -= 1
+        if(elseflag < 0):
+            elseflag = 0
+
+        if((temp != "subprograms") and ((token == "functiontk") or (token == "proceduretk"))):
+            print("Syntax Error. Wrong program structure! The valid structure for the program is 1.declarations (if any)\n\
+2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+        elif(token == "declaretk"):
+            print("Syntax Error. Wrong program structure! The valid structure for the program is 1.declarations (if any)\n\
+2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
+            file.close()
+            sys.exit()
+
+
     return forreturn
 #============ STATEMENTS ==================  
 
@@ -533,9 +561,7 @@ def statement(file_counters):
     global word,token
     forreturn = ""
 
-    if(token == "asgntk"):
-        word, token = lexer(file_counters)
-        print(word+" "+token)
+    if(token == "keywordtk"):
         forreturn = forreturn +" "+ asgnStat(file_counters)
     elif(token == "iftk"):
         word, token = lexer(file_counters)
@@ -549,7 +575,8 @@ def statement(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token)
         forreturn = forreturn +" "+ switchcaseStat(file_counters)
-    elif(token == "forecasetk"):
+    elif(token == "forcasetk"):
+        print("edwwwwwwww")
         word, token = lexer(file_counters)
         print(word+" "+token)
         forreturn = forreturn +" "+ forcaseStat(file_counters)
@@ -573,8 +600,18 @@ def statement(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token)
         forreturn = forreturn +" "+ printStat(file_counters)
-    elif(word in strict_words):
-        print("'Strict words' like '"+word+"' are not acceptable at this point of code.Error at line: "+str(file_counters[1])+
+    elif(word in strict_words and (word != "function" and word!="procedure" and word != "declare")):
+        print("Statements can not start with 'Strict words' like '"+word+"'. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    elif(token == "numbertk"):
+        print("Syntax Error. Statements can not start with a number. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+        ",column: " +(str(file_counters[4] - len(word))))
+        file.close()
+        sys.exit()
+    elif(word in "():=+-*/[]<=>=<>"):
+        print("Syntax Error. Statements can not start with symbols like '"+word+"'. Error at line: "+str(int((file_counters[1] + 1) / 2))+
         ",column: " +(str(file_counters[4] - len(word))))
         file.close()
         sys.exit()
@@ -651,6 +688,7 @@ def ifStat(file_counters):
             print(word+" "+token)
 
             forreturn = forreturn +" "+ statements(file_counters)
+            print(word+" "+token)
             forreturn = forreturn +" "+ elsepart(file_counters)
         else:
             print("Syntax Error. Keyword ')' expected here in order to finish return condition. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -669,25 +707,23 @@ def ifStat(file_counters):
 
 #============ ELSEPART ===================
 def elsepart(file_counters):
-    global word, token
+    global word, token, elseflag
     forreturn = ""
 
     if(token == "elsetk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-
+        elseflag += 1
         forreturn = forreturn +" "+ statements(file_counters)# 8a epistrefei epomeno
+        
     
     return forreturn
 #============ ELSEPART ===================
 
 #============ WHILESTAT ===================
 def whileStat(file_counters):
-    global word, token
+    global word, token, whileflag
     forreturn = ""
-
-    word, token = lexer(file_counters)
-    print(word+" "+token)
 
     if(word == '('):
         forreturn = forreturn +" "+ word
@@ -703,6 +739,7 @@ def whileStat(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
+            whileflag += 1
             forreturn = forreturn +" "+ statements(file_counters)
         else:
             print("Syntax Error. Keyword ')' expected here in order to finish while condition. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -934,13 +971,16 @@ def returnStat(file_counters):
     forreturn = ""
 
     if(word == '('):
+        forreturn = forreturn +" "+ word
         word, token = lexer(file_counters)
         print(word+" "+token)
 
         forreturn = forreturn +" "+ expression(file_counters)       
 
         if(word == ')'):
+            forreturn = forreturn +" "+ word
             word, token = lexer(file_counters)
+            print(word+" "+token)
         else:
             print("Syntax Error. Keyword ')' expected here in order to finish return statement. Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
@@ -1372,7 +1412,7 @@ def idtail(file_counters):
         file.close()
         sys.exit()
     elif(word in strict_words):
-        print("Strict words' like '"+word+"' are not acceptable as factors. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+        print("100. Strict words' like '"+word+"' are not acceptable as factors. Error at line: "+str(int((file_counters[1] + 1) / 2))+
         ",column: " +(str(file_counters[4] - len(word))))
         file.close()
         sys.exit()
@@ -1460,8 +1500,81 @@ def illegal_function_names(functionOrProcedure):
 #                   Error Handler Methods
 #======================================================================
 
+#======================================================================
+#                   End of Syntaktikos Analyths
+#======================================================================
+
+
+#======================================================================
+#                   Endiamesos Kwdikas
+#======================================================================
+quads = 0
+
+quadList = [][3]
+
+def nextquad():
+    global quads
+    quads += 1
+    return quads
+
+def genquad(op,x,y,z):
+    quad = [op,x,y,z]
+    return quad
+
+def newtemp():
+    global var_counter
+    var = "T_"
+    var = var + str(var_counter)
+    return var
+
+def emptylist():
+    emptylist = list()
+    return emptylist
+
+def makelist(x):
+    tmp_list = list()
+    tmp_list.append(x)
+    return tmp_list
+
+def merge(list1, list2):
+    for x in list2:
+        list1.append(x)
+    release_list(list2)
+    return list1
+
+# delete list from memory
+def release_list(a):
+    del a[:]
+    del a
+
+def backpatch(list, z):
+    global quadList
+    for ptr in list:
+        quadList[ptr][3] = z
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #==================== MAIN ============================================
-file = load_file()
+if(len(sys.argv) < 2):
+    sys.exit("Error: No file given!")
+elif(len(sys.argv) > 2):
+    sys.exit("More than one files given!")
+else:
+    file = open(sys.argv[1], "r")
+
 word, token = lexer(file_counters)
 print(word+" "+token)
 program(file_counters)
