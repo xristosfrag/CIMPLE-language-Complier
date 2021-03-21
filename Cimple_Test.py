@@ -42,7 +42,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col, 
-word, token, variables, ins, inouts, temp, elseflag, whileflag, var_counter,program_name = "","", list(), list(), list(), "", 0, 0, 0, ""
+word, token, variables, ins, inouts, temp, elseflag, whileflag, var_counter,program_name,function_names = "","", list(), list(), list(), "", 0, 0, 0, "",[]
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
 #----------------------------------
@@ -363,6 +363,7 @@ def subprogram(file_counters):
         print(word+" "+token)
         if(token == "keywordtk"):
             id = word
+            function_names.append(id)
             word, token = lexer(file_counters)
             print(word+" "+token)
             if(word == '('):
@@ -398,6 +399,7 @@ def subprogram(file_counters):
         print(word+" "+token)
         if(token == "keywordtk"):
             id = word
+            function_names.append(id)
             word, token = lexer(file_counters)
             print(word+" "+token)
             if(word == '('):
@@ -405,8 +407,8 @@ def subprogram(file_counters):
                 print(word+" "+token)
                 formalparlist(file_counters)
         
-                nextquad()
-                quadList.append(genquad("call",id,"",""))                               #endiamesou
+                #nextquad()
+                #quadList.append(genquad("call",id,"",""))
                 if(word == ')'):
                     word, token = lexer(file_counters)
                     print(word+" "+token)
@@ -631,7 +633,7 @@ def statement(file_counters):
 
 #============ ASGNSTAT ===================
 def asgnStat(file_counters):
-    global word, token
+    global word, token,quadList
 
     if(token == "keywordtk"):
         z = word
@@ -679,7 +681,7 @@ def asgnStat(file_counters):
 
 #============ IFSTAT ===================
 def ifStat(file_counters):
-    global word, token
+    global word, token,quadList
 
     if(word == '('):
 
@@ -687,7 +689,6 @@ def ifStat(file_counters):
         print(word+" "+token)
 
         jump = condition(file_counters)
-        condition(file_counters)
 
         nextquad()
         quadList.append(genquad("jump","","",jump))                           #endiamesou
@@ -904,10 +905,7 @@ def callStat(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            actualparlist(file_counters)
-
-            nextquad()
-            quadList.append(genquad("call",id,"",""))
+            actualparlist(file_counters,id)
 
             if(word == ')'):
                 
@@ -940,7 +938,7 @@ def callStat(file_counters):
 
 #============ RETURNSTAT ===================  
 def returnStat(file_counters):
-    global word,token
+    global word,token,quadList
 
     if(word == '('):
         word, token = lexer(file_counters)
@@ -1040,8 +1038,8 @@ def printStat(file_counters):
 #============ PRINTSTAT ======================
 
 #============ ACTUALPARLIST ===================
-def actualparlist(file_counters):
-    global word, token
+def actualparlist(file_counters,function_name):
+    global word, token,quadList
     flag = token
     insout, commas = 0, 0
     ret = ""
@@ -1073,12 +1071,17 @@ def actualparlist(file_counters):
                 ",column: " +(str(file_counters[4] - len(word))) +" in order to add more parameters")
                 file.close()
                 sys.exit() 
+
+        if(function_name in function_names):
+            nextquad()
+            quadList.append(genquad("call",function_name,"",""))    
+        
     return ret
 #============ ACTUALPARLIST ===================
 
 #============ ACTUALPARITEM ===================
 def actualparitem(file_counters,flag,insout,commas):
-    global word, token
+    global word, token,quadList
     listappend = ""
     e = ""
 
@@ -1121,49 +1124,74 @@ def actualparitem(file_counters,flag,insout,commas):
 
 #============ CONDITION =======================
 def condition(file_counters):
-    global word,token
+    global word,token,quads
     
-    boolterm(file_counters)
+    Q_list = boolterm(file_counters)
+    Q_list_true = Q_list[0]
+    Q_list_false = Q_list[1]
 
     while(token == "ortk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
+
+        backpatch(Q_list[1],quads + 1)
+        Q_list = boolterm(file_counters)
+        Q_list_true = merge(Q_list_true, Q_list[0])
+        Q_list_false = Q_list[1]
         
-        boolterm(file_counters)
+    tmp = list()
+    tmp.append(Q_list_true)
+    tmp.append(Q_list_false)
+        
+    release_list(Q_list)
+    return tmp
 #============ CONDITION =======================
 
 #============ BOOLTERM =======================
 def boolterm(file_counters):
-    global word,token
-    forreturn = ""
+    global word,token,quads
 
-    boolfactor(file_counters)
+    Q_list = boolfactor(file_counters)
+    Q_list_true = Q_list[0]
+    Q_list_false = Q_list[1]
+
 
     while(token == "andtk"):
 
         word, token = lexer(file_counters)
         print(word+" "+token)
         
-        boolfactor(file_counters)
+        backpatch(Q_list[0],quads + 1)
+        Q_list = boolfactor(file_counters)
+        Q_list_false = merge(Q_list_false, Q_list[1])
+        Q_list_true = Q_list[0]
+    
+    tmp = list()
+    tmp.append(Q_list_true)
+    tmp.append(Q_list_false)
+        
+    release_list(Q_list)
+    return tmp
 #============ BOOLTERM =======================
 
 #============ BOOLFACTOR =======================
 def boolfactor(file_counters):
     global word,token
 
-    if(token == "nottk"):
+    if(token == "nottk"):                                              #change true with false!!!!!!!!!!!!!!!!!!!!!!!!
         word, token = lexer(file_counters)
         print(word+" "+token)
 
         if(word == '['):
             word, token = lexer(file_counters)
             print(word+" "+token)
-            condition(file_counters)
+            c = condition(file_counters)
 
             if(word == ']'):
                 word, token = lexer(file_counters)
                 print(word+" "+token)
 
+                return c
             else:
                 if(word in strict_words):
                     print("Syntax Error. Keyword ']' excpected here. 'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -1198,12 +1226,12 @@ def boolfactor(file_counters):
     elif(word == '['):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        condition(file_counters)
+        c = condition(file_counters)
 
         if(word == ']'):
-                word, token = lexer(file_counters)
-                print(word+" "+token)
-
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            return c
         else:
             if(word in strict_words):
                 print("Syntax Error. Keyword ']' excpected here. 'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -1221,14 +1249,26 @@ def boolfactor(file_counters):
             sys.exit()
     #expression
     else:
-
-        expression(file_counters)
+        
+        e1 = expression(file_counters)
+        
 
         if(token == "relOperatortk"):
+            op = word
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            expression(file_counters)
+            e2 = expression(file_counters)
+
+            R_true = makelist(nextquad())
+            quadList.append(genquad(op,e1,e2,""))
+            R_false = makelist(nextquad())
+            quadList.append(genquad("jump","","",""))
+
+            tmp = list()
+            tmp.append(R_true)
+            tmp.append(R_false)
+            return tmp
         else:
             if(word in strict_words):
                 print("Syntax Error. Operator '= | <= | >= | > | < | <>' excpected here. 'Strict words' like '"+word+"' are not acceptable here. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -1324,14 +1364,11 @@ def factor(file_counters):
     
     elif(token == "keywordtk"): 
         ret = word
-
         word, token = lexer(file_counters)
         print(word+" "+token)
-        ret = ret+" "+ idtail(file_counters)
-
-        nextquad()
-        quadList.append(genquad("call",ret,"",""))
-
+        e = idtail(file_counters,ret)
+        if(e != ""):
+            ret = e
 
     #Errors below
     elif(word in strict_words):
@@ -1355,7 +1392,7 @@ def factor(file_counters):
 #============ FACTOR ===================    
 
 #============ IDTAIL ===================
-def idtail(file_counters):
+def idtail(file_counters,function_name):
     global word,token
     ret = ""
     
@@ -1373,7 +1410,7 @@ def idtail(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token) 
 
-        ret = actualparlist(file_counters)
+        ret = actualparlist(file_counters,function_name)
 
         if(word == ')'):
             word, token = lexer(file_counters)
