@@ -681,26 +681,32 @@ def asgnStat(file_counters):
 
 #============ IFSTAT ===================
 def ifStat(file_counters):
-    global word, token,quadList
+    global word, token,quadList,quads
 
     if(word == '('):
 
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        jump = condition(file_counters)
+        B = condition(file_counters)
 
-        nextquad()
-        quadList.append(genquad("jump","","",jump))                           #endiamesou
+        Btrue = B[0]
+        Bfalse = B[1]
 
         if(word == ')'):
             
             word, token = lexer(file_counters)
             print(word+" "+token)
 
+            backpatch(Btrue,quads + 1)
             statements(file_counters)
+            ifList = makelist(nextquad())
+            quadList.append(genquad("jump","","",""))
+            backpatch(Bfalse,quads + 1)
+
             print(word+" "+token)
             elsepart(file_counters)
+            backpatch(ifList,quads + 1)
         else:
             print("Syntax Error. Keyword ')' expected here in order to finish return condition. Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
@@ -726,21 +732,31 @@ def elsepart(file_counters):
 
 #============ WHILESTAT ===================
 def whileStat(file_counters):
-    global word, token, whileflag
+    global word, token, whileflag,quads
 
     if(word == '('):
 
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        condition(file_counters)
+        Bquad = quads+1
+        B = condition(file_counters)
+
+        Btrue = B[0]
+        Bfalse = B[1]
 
         if(word == ')'):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
             whileflag += 1
+
+            backpatch(Btrue,quads + 1)
             statements(file_counters)
+            nextquad()
+            quadList.append(genquad("jump","","",Bquad))
+            backpatch(Bfalse,quads + 1)
+            
         else:
             print("Syntax Error. Keyword ')' expected here in order to finish while condition. Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
@@ -755,8 +771,10 @@ def whileStat(file_counters):
 
 #============ SWITCHCASESTAT ===================
 def switchcaseStat(file_counters):
-    global word, token
+    global word, token, quadList, quads
 
+    exitlist = emptylist()
+    
     if(token != "casetk"):
         print("Syntax Error. Keyword 'case' excpected here in order to start switchcase statement. Error at line: "+str(int((file_counters[1] + 1) / 2))+
         ",column: " +(str(file_counters[4] - len(word))))
@@ -772,14 +790,22 @@ def switchcaseStat(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            condition(file_counters)
+            C = condition(file_counters)
+            CondTrue = C[0]
+            CondFalse = C[1]
 
             if(word == ')'):
                 
                 word, token = lexer(file_counters)
                 print(word+" "+token)
 
+                backpatch(CondTrue,quads + 1)
                 statements(file_counters)
+
+                e = makelist(nextquad())
+                quadList.append(genquad("jump","","",""))
+                merge(exitlist,e)
+                backpatch(CondFalse,quads + 1)
             else:
                 print("Syntax Error. Keyword ')' expected here in order to finish case condition. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                 ",column: " +(str(file_counters[4] - len(word))))
@@ -797,6 +823,7 @@ def switchcaseStat(file_counters):
         print(word+" "+token)
 
         statements(file_counters)
+        backpatch(exitlist,quads + 1)
     else:
         print("Syntax Error. Keyword 'case' excpected here in order to finish switchcase statement. Error at line: "+str(int((file_counters[1] + 1) / 2))+
         ",column: " +(str(file_counters[4] - len(word))))
@@ -1073,8 +1100,12 @@ def actualparlist(file_counters,function_name):
                 sys.exit() 
 
         if(function_name in function_names):
+            w = newtemp()
+            nextquad()
+            quadList.append(genquad("par",w,"RET",""))
             nextquad()
             quadList.append(genquad("call",function_name,"",""))    
+            ret = w
         
     return ret
 #============ ACTUALPARLIST ===================
@@ -1157,7 +1188,6 @@ def boolterm(file_counters):
 
 
     while(token == "andtk"):
-
         word, token = lexer(file_counters)
         print(word+" "+token)
         
@@ -1178,7 +1208,7 @@ def boolterm(file_counters):
 def boolfactor(file_counters):
     global word,token
 
-    if(token == "nottk"):                                              #change true with false!!!!!!!!!!!!!!!!!!!!!!!!
+    if(token == "nottk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
 
@@ -1186,6 +1216,10 @@ def boolfactor(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
             c = condition(file_counters)
+            
+            tmp = c[0]
+            c[0] = c[1]
+            c[1] = tmp
 
             if(word == ']'):
                 word, token = lexer(file_counters)
