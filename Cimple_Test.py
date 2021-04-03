@@ -42,7 +42,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col, 
-word, token, variables, ins, inouts, temp, elseflag, whileflag, var_counter,program_name,function_names = "","", list(), list(), list(), "", 0, 0, 0, "",[]
+word, token, variables, temp, elseflag, whileflag, var_counter,program_name,function_names,var = "","", list(), "", 0, 0, 0, "",[],""
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
 #----------------------------------
@@ -305,6 +305,7 @@ def varlist(file_counters):
     if(token == "keywordtk"):
         count_vars += 1
         variables.append(word)
+        addVars(word)
         word, token = lexer(file_counters)
         print(word+" "+token)
         if((word != ',') and (word != ';')):
@@ -320,6 +321,7 @@ def varlist(file_counters):
         print(word+" "+token)
         if(token == "keywordtk"):
             variables.append(word)
+            addVars(word)
             word, token = lexer(file_counters)
             print(word+" "+token)
             if(word == ';'):
@@ -442,11 +444,7 @@ def formalparitem(file_counters):
     if(token == "intk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        if(token == "keywordtk"):
-            ins.append(word)                                    ##################
-
-            #nextquad()
-            #quadList.append(genquad(quads,"par",word,"cv",""))
+        if(token == "keywordtk"):              
         
             word, token = lexer(file_counters)
             print(word+" "+token)
@@ -458,11 +456,6 @@ def formalparitem(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
-            wordreference = [str(word)]                         ##################
-            inouts.append(wordreference)                        ##################
-
-            #nextquad()
-            #quadList.append(genquad(quads,"par",word,"ref",""))  
                         
             word, token = lexer(file_counters)
             print(word+" "+token)
@@ -530,7 +523,9 @@ def statements(file_counters):
             sys.exit("Syntax error. Keyword ';' was expected at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))) +" in order to finish with the statements")
         
-        if(((word == ';') and (elseflag > 0))):
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        '''if(((word == ';') and (elseflag > 0))):
             pass
         else:
             word, token = lexer(file_counters)
@@ -538,7 +533,7 @@ def statements(file_counters):
 
         elseflag -= 1
         if(elseflag < 0):
-            elseflag = 0
+            elseflag = 0'''
 
         if((temp != "subprograms") and ((token == "functiontk") or (token == "proceduretk"))):
             file.close()
@@ -699,7 +694,7 @@ def elsepart(file_counters):
     if(token == "elsetk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        elseflag += 1
+        #elseflag += 1
         statements(file_counters)# 8a epistrefei epomeno
 #============ ELSEPART ===================
 
@@ -1515,7 +1510,57 @@ def backpatch(list, z):
     for ptr_quad in list:
         quadList[ptr_quad][4] = z
 
+def addVars(temp):
+    global var
 
+    if var != "":
+        var += ","+str(temp)
+    else:
+        var += ""+str(temp)
+
+def write_quads_to_file():
+    global quadList
+
+    with open("quadList.txt","w") as filehandle:
+        for quad in quadList:
+            filehandle.write('%s\n' %quad)
+
+
+def endiamesos_kwdikas():
+    global quadList, function_names,var_counter
+
+    if function_names == []:  
+        for v in range(0,var_counter):
+            va = "T_"+str(v)
+            addVars(va)
+
+        with open("endiamesos.c","w") as filehandle:
+            filehandle.write("int main()\n{\n")
+            filehandle.write("\tint %s;\n" %var)
+            for quad in quadList:
+                if quad[0] == 0:
+                    filehandle.write('\tL_0:\n')
+                    continue
+                if ":=" in quad:
+                    filehandle.write('\tL_%s: %s = %s;\t//%s\n' %(quad[0],quad[4],quad[2],quad[1:]))
+                    continue
+                if ("+" in quad) or ("-" in quad) or ("*" in quad) or ("/" in quad):
+                    filehandle.write('\tL_%s: %s = %s %s %s;\t//%s\n' %(quad[0],quad[4],quad[2],quad[1],quad[3],quad[1:]))
+                    continue
+                if ("<" in quad) or (">" in quad) or ("<>" in quad) or ("<=" in quad)  or ("=" in quad) or (">=" in quad):
+                    filehandle.write('\tL_%s: if(%s %s %s) goto L_%s;\t//%s\n' %(quad[0],quad[2],quad[1],quad[3],quad[4],quad[1:]))
+                    continue
+                if "jump" in quad:
+                    filehandle.write('\tL_%s: goto L_%s;\t//%s\n' %(quad[0],quad[4],quad[1:]))
+                    continue
+                if "halt" in quad:
+                    filehandle.write('\tL_%s: {} \n' %quad[0])
+                    continue
+            filehandle.write("}")
+
+#======================================================================
+#                   End of Endiamesos Kwdikas
+#======================================================================
 
 #==================== MAIN ============================================
 if(len(sys.argv) < 2):
@@ -1531,19 +1576,5 @@ print(word+" "+token)
 program(file_counters)
 print(quadList)
 
-with open("quadList.txt","w") as filehandle:
-    for quad in quadList:
-        filehandle.write('%s\n' %quad)
-    
-if function_names != []:   
-    quadlist = "" 
-    with open("endiamesos.c","w") as filehandle:
-        filehandle.write("int main()\n{\n")
-        for quad in quadList:
-            if quad[0] == 0:
-                continue
-            if ":=" in quad:
-                filehandle.write('\tL_%s: %s = %s;\t//%s\n' %(quad[0],quad[4],quad[2],quad[1:]))
-                continue
-            filehandle.write('\tL_%s: %s %s %s %s\n' %(quad[0],quad[1],quad[2],quad[3],quad[4]))
-        filehandle.write("}")
+write_quads_to_file()
+endiamesos_kwdikas()
