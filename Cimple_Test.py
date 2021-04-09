@@ -42,7 +42,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col, 
-word, token, variables, temp, elseflag, whileflag, var_counter,program_name,function_names,var = "","", list(), "", 0, 0, 0, "",[],""
+word, token, variables, temp, elseflag, whileflag, var_counter,program_name,function_names,var,parameters = "","", list(), "", 0, 0, 0, "",[],"",list()
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
 #----------------------------------
@@ -1034,7 +1034,7 @@ def printStat(file_counters):
 #============ PRINTSTAT ======================
 
 #============ ACTUALPARLIST ===================
-def actualparlist(file_counters,function_name):
+def actualparlist(file_counters,function_name,parameters):
     global word, token,quadList, quads
     flag = token
     insout, commas = 0, 0
@@ -1045,7 +1045,7 @@ def actualparlist(file_counters,function_name):
         word, token = lexer(file_counters)
         print(word+" "+token)
 
-        ret = actualparitem(file_counters,flag,insout,commas)
+        ret = actualparitem(file_counters,flag,insout,commas,parameters)
 
         if(word != ','):
             if((token == "intk") or (token == "inouttk")):
@@ -1057,7 +1057,7 @@ def actualparlist(file_counters,function_name):
             word, token = lexer(file_counters)
             flag = token
             
-            ret += actualparitem(file_counters,flag,insout,commas)
+            ret += actualparitem(file_counters,flag,insout,commas,parameters)
             if(word == ')'):
                 break
             elif(word != ','):
@@ -1067,17 +1067,21 @@ def actualparlist(file_counters,function_name):
 
         if(function_name in function_names):
             w = newtemp()
-            nextquad()
-            quadList.append(genquad(quads,"par",w,"RET",""))
-            nextquad()
-            quadList.append(genquad(quads,"call",function_name,"",""))    
+            #nextquad()
+            #quadList.append(genquad(quads,"par",w,"RET",""))
+            #nextquad()
+            #quadList.append(genquad(quads,"call",function_name,"",""))    
+
+            parameters.append(["par",w,"RET"])
+            parameters.append(["call",function_name,""])
+
             ret = w
         
     return ret
 #============ ACTUALPARLIST ===================
 
 #============ ACTUALPARITEM ===================
-def actualparitem(file_counters,flag,insout,commas):
+def actualparitem(file_counters,flag,insout,commas,parameters):
     global word, token,quadList, quads
     listappend = ""
     e = ""
@@ -1089,8 +1093,11 @@ def actualparitem(file_counters,flag,insout,commas):
 
         e = expression(file_counters)
 
-        nextquad()
-        quadList.append(genquad(quads,"par",e,"CV",""))
+        #nextquad()
+        #quadList.append(genquad(quads,"par",e,"CV",""))
+
+
+        parameters.append(["par",e,"CV"])
 
     elif(flag == "inouttk"):
 
@@ -1103,8 +1110,10 @@ def actualparitem(file_counters,flag,insout,commas):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            nextquad()
-            quadList.append(genquad(quads,"par",e,"REF",""))
+            #nextquad()
+            #quadList.append(genquad(quads,"par",e,"REF",""))
+
+            parameters.append(["par",e,"REF"])
 
         else:
             file.close()
@@ -1398,16 +1407,26 @@ def idtail(file_counters,function_name):
         word, token = lexer(file_counters)
         print(word+" "+token) 
 
-        ret = actualparlist(file_counters,function_name)
+    
+        parameters = list()
+
+        ret = actualparlist(file_counters,function_name,parameters)
 
         if(word == ')'):
             word, token = lexer(file_counters)
             print(word+" "+token)
+
+            print(parameters)
+            for q in parameters:
+
+                nextquad()
+                quadList.append(genquad(quads,q[0],q[1],q[2],""))
         
         else:
             file.close()
             sys.exit("Syntax Error. Keyword ')' expected here. Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
+
     return ret
 #============ IDTAIL =========================
 
@@ -1561,6 +1580,51 @@ def endiamesos_kwdikas():
 #======================================================================
 #                   End of Endiamesos Kwdikas
 #======================================================================
+
+#======================================================================
+#                   Pinakas Symvolwn
+#======================================================================
+
+class Record_Entity():
+    def __init__(self,name,entity_type,entity_next):
+        self.name = name
+        self.type = entity_type
+        self.entity_next = entity_next
+
+    def set_entity_next(self,entity_next):
+        self.entity_next = entity_next
+    
+
+
+class Variable():
+    def __init__(self,offset):
+        self.offset = offset
+
+class Function():
+    def __init__(self,start_quad, list_argument, framelength):
+        self.start_quad = start_quad
+        self.list_argument = list_argument
+        self.framelength = framelength
+
+    def set_start_quad(self,start_quad):
+        self.start_quad = start_quad
+        
+    def set_framelength(self,framelength):
+        self.framelength = framelength
+
+class Const():
+    def __init__(self,value):
+        self.value = value
+
+class Parameter():
+    def __init__(self, parMode, offset):
+        self.parMode = parMode
+        self.offset = offset
+    
+class Temp_Variable():
+    def __int__(self,offset):
+        self.offset = offset
+
 
 #==================== MAIN ============================================
 if(len(sys.argv) < 2):
