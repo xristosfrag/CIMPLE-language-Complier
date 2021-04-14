@@ -257,7 +257,7 @@ def program(file_counters):
 
 #============ BLOCK ================
 def block(file_counters,name):
-    global word,token,temp,quadList,program_name, quads
+    global word,token,temp,quadList,program_name, quads, objects_list,main_obj
 
     declarations(file_counters)
     subprograms(file_counters)
@@ -277,6 +277,15 @@ def block(file_counters,name):
     if('_' in name):
         name = name[:-1]
     quadList.append(genquad(quads,"end_block",name,"",""))
+
+    #print(objects_list.pop().get())
+    #objects_list[0].print()
+    #objects_list.pop()
+    if(len(main_obj.offsets) >= 2):
+        objects_list[len(objects_list) -1].set_framelength(main_obj.offsets[len(objects_list)-1] + 4)
+    main_obj.print()
+    objects_list[0].remove_scope()
+    del objects_list[len(objects_list)-1]
 #============ BLOCK ================
 
 #============ DECLARATIONS ================  
@@ -300,14 +309,15 @@ def declarations(file_counters):
 
 #============ VARLIST =====================
 def varlist(file_counters):
-    global word,token,variables,main_obj
+    global word,token,variables, objects_list   # main_obj
     count_vars, count_commas = 0, 0
 
     if(token == "keywordtk"):
         
-        main_obj.change_offset()
-        var = Variable(word,main_obj.offset)
-        main_obj.append(var)
+        last_obj = objects_list[len(objects_list)-2]
+        last_obj.change_offset()
+        var = Variable(word,last_obj.offsets[len(last_obj.offsets)-2])
+        last_obj.append(var)
 
         count_vars += 1
         variables.append(word)
@@ -327,9 +337,10 @@ def varlist(file_counters):
         print(word+" "+token)
         if(token == "keywordtk"):
 
-            main_obj.change_offset()
-            var = Variable(word,main_obj.offset)
-            main_obj.append(var)
+            last_obj = objects_list[len(objects_list)-2]
+            last_obj.change_offset()
+            var = Variable(word,last_obj.offsets[len(last_obj.offsets)-2])
+            last_obj.append(var)
 
             variables.append(word)
             addVars(word)
@@ -360,7 +371,7 @@ def subprograms(file_counters):
 
 #============ SUBPROGRAM ================= 
 def subprogram(file_counters):
-    global word, token,temp,quadList,main_obj
+    global word, token,temp,quadList,objects_list   # main_obj
     id = ""
     if(token == "functiontk"):
         word, token = lexer(file_counters)
@@ -369,9 +380,12 @@ def subprogram(file_counters):
             id = word
             function_names.append(id)
 
-            function_obj = Function(id,None,[],None)
-            main_obj.append(function_obj)
-            main_obj.add_scope()
+            function_obj = Function(id,None,[],0)
+            objects_list.append(function_obj)
+
+            father_obj = objects_list[len(objects_list)-2]
+            father_obj.append(function_obj)
+            father_obj.add_scope()
 
             word, token = lexer(file_counters)
             print(word+" "+token)
@@ -407,9 +421,12 @@ def subprogram(file_counters):
             id = word
             function_names.append(id)
 
-            function_obj = Function(id,None,[],None)
-            main_obj.append(function_obj)
-            main_obj.add_scope()
+            function_obj = Function(id,None,[],0)
+            objects_list.append(function_obj)
+
+            father_obj = objects_list[len(objects_list)-2]
+            father_obj.append(function_obj)
+            father_obj.add_scope()
             
             word, token = lexer(file_counters)
             print(word+" "+token)
@@ -471,9 +488,9 @@ def formalparitem(file_counters, function_obj):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):              
-        
+          
             main_obj.change_offset()
-            par = Parameter(word,"CV",main_obj.offset)
+            par = Parameter(word,"CV",main_obj.offsets[len(main_obj.offsets)-1])
             main_obj.append(par)
 
             word, token = lexer(file_counters)
@@ -887,7 +904,7 @@ def forcaseStat(file_counters):
 
 #============ INCASESTAT ===================
 def incaseStat(file_counters):
-    global word, token, quadList, quads
+    global word, token, quadList, quads, objects_list
 
     if(token != "casetk"):
         file.close()
@@ -897,6 +914,10 @@ def incaseStat(file_counters):
     w = newtemp()
     p1Quad = nextquad()
     quadList.append(genquad(quads,":=","1","",w))
+
+    main_obj.change_offset()
+    temp_var_obj = Temp_Variable(w,main_obj.offsets[len(main_obj.offsets)-1])
+    main_obj.append(temp_var_obj)
 
     while(token == "casetk"):
         word, token = lexer(file_counters)
@@ -1073,7 +1094,7 @@ def printStat(file_counters):
 
 #============ ACTUALPARLIST ===================
 def actualparlist(file_counters,function_name,parameters):
-    global word, token,quadList, quads
+    global word, token,quadList, quads, objects_list
     flag = token
     insout, commas = 0, 0
     ret = ""
@@ -1105,6 +1126,11 @@ def actualparlist(file_counters,function_name,parameters):
 
         if(function_name in function_names):
             w = newtemp()
+
+            main_obj.change_offset()
+            temp_var_obj = Temp_Variable(w,main_obj.offsets[len(main_obj.offsets)-1])
+            main_obj.append(temp_var_obj)
+
             #nextquad()
             #quadList.append(genquad(quads,"par",w,"RET",""))
             #nextquad()
@@ -1329,7 +1355,7 @@ def boolfactor(file_counters):
 
 #============ EXPRESION =======================
 def expression(file_counters):
-    global word,token, quadList, quads
+    global word,token, quadList, quads, objects_list
 
     optionalSign(file_counters)
 
@@ -1349,13 +1375,16 @@ def expression(file_counters):
         quadList.append(genquad(quads,op,t1,t2,w))      #endiamesou
         t1 = w
 
+        main_obj.change_offset()
+        temp_var_obj = Temp_Variable(w,main_obj.offsets[len(main_obj.offsets)-1])
+        main_obj.append(temp_var_obj)
 
     return t1  
 #============ EXPRESION =================== 
 
 #============ TERM ======================== 
 def term(file_counters):
-    global word,token, quadList, quads
+    global word,token, quadList, quads, objects_list
 
     f1 = factor(file_counters)
     
@@ -1370,7 +1399,11 @@ def term(file_counters):
         nextquad()
         quadList.append(genquad(quads,mul,f1,f2,w))
         f1 = w
-    
+
+        main_obj.change_offset()
+        temp_var_obj = Temp_Variable(w,main_obj.offsets[len(main_obj.offsets)-1])
+        main_obj.append(temp_var_obj)
+
     return f1
 
 #============ TERM ===================== 
@@ -1454,7 +1487,7 @@ def idtail(file_counters,function_name):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            print(parameters)
+            #print(parameters)
             for q in parameters:
 
                 nextquad()
@@ -1627,26 +1660,27 @@ class ps:
     pinakas_symvolwn = [[]]
     scope = 0
     offset = 0
+    offsets = []
 
     def __init__(self):
         self.pinakas_symvolwn[0].append("0")
-        self.offset = 8
+        self.offsets.append(8)
 
     def append(self,record):
         self.pinakas_symvolwn[self.scope].append(record)
     
     def change_offset(self):
-        self.offset += 4
+        self.offsets[self.scope] += 4
     
     def add_scope(self):
         self.scope += 1
-        self.offset = 8
+        self.offsets.append(8)
         self.pinakas_symvolwn.append([str(self.scope)])
 
     def remove_scope(self):
         del self.pinakas_symvolwn[self.scope]
+        del self.offsets[self.scope]
         self.scope -= 1
-        self.offset = self.pinakas_symvolwn[str(scope)]
 
     def print(self):
         for row in self.pinakas_symvolwn:
@@ -1685,14 +1719,13 @@ class Function:
     
     def add_argument(self,argument):
         self.list_argument.append(argument.get())
-        print(argument)
 
     def get(self):
         if self.list_argument == []:
              return(self.name)
         else:
             listToStr = ', '.join([str(elem) for elem in self.list_argument])
-            return(self.name+" {"+listToStr+"}")
+            return(self.name+" {"+listToStr+"} "+ str(self.framelength))
 
 class Parameter:
     name = ""
@@ -1711,7 +1744,7 @@ class Temp_Variable:
     name = ""
     offset = 0
 
-    def __int__(self, name, offset):
+    def __init__(self, name, offset):
         self.name = name
         self.offset = offset
     
@@ -1738,11 +1771,16 @@ else:
 
 word, token = lexer(file_counters)
 print(word+" "+token)
+
 main_obj = ps()
+objects_list = list()
+objects_list.append(main_obj)
+
 program(file_counters)
 print(quadList)
 
 write_quads_to_file()
 endiamesos_kwdikas()
 
+print()
 main_obj.print()
