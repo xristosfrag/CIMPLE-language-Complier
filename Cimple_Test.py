@@ -321,10 +321,15 @@ def varlist(file_counters):
 
     if(token == "keywordtk"):
 
+        i = main_obj.Search(word,main_obj.scope)
+        if (i != -1):
+            file.close()
+            sys.exit("Variable name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
+        
         main_obj.change_offset()
         var = Variable(word, main_obj.offsets[main_obj.scope])
         main_obj.append(var)
-
 
         count_vars += 1
         variables.append(word)
@@ -343,6 +348,12 @@ def varlist(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
+
+            i = main_obj.Search(word,main_obj.scope)
+            if (i != -1):
+                file.close()
+                sys.exit("Variable name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
 
             main_obj.change_offset()
             var = Variable(word, main_obj.offsets[main_obj.scope])
@@ -381,6 +392,13 @@ def subprogram(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
+
+            i = main_obj.Search(word)
+            if i!=-1:
+                file.close()
+                sys.exit("Function name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))  
+
             id = word
             function_names.append(id)
 
@@ -422,6 +440,13 @@ def subprogram(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
+
+            i = main_obj.Search(word)
+            if i!=-1:
+                file.close()
+                sys.exit("Procedure name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
+
             id = word
             function_names.append(id)
 
@@ -1440,6 +1465,14 @@ def factor(file_counters):
             ",column: " +(str(file_counters[4] - len(word))))
     
     elif(token == "keywordtk"): 
+
+        i = main_obj.Search(word)
+        if i==-1:
+            file.close()
+            sys.exit("Keyword '"+word+"' unidentified. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word)))) 
+
+
         ret = word
         word, token = lexer(file_counters)
         print(word+" "+token)
@@ -1693,6 +1726,23 @@ class ps:
                 k += " ["+ row[j].get()+"] "
             print(k)    
 
+    def Search(self,name,scope=-1):
+        if scope != -1:
+            row = self.pinakas_symvolwn[scope]
+            for i in range(1,len(row)):
+                if name == row[i].getName():
+                    return row[i].getName()
+            #print("Entity '"+name+"' not found")
+            return -1
+        else:   
+            for row in self.pinakas_symvolwn:
+                for j in range(1,len(row)):
+                    print(row[j].getName()+ " "+ name)
+                    if name == row[j].getName():
+                        return row[j].getName()
+            #print("Entity '"+name+"' not found")
+            return -1
+
 class Variable:
     name = ""
     offset = 0
@@ -1700,9 +1750,13 @@ class Variable:
     def __init__(self,name,offset):
         self.name = name
         self.offset = offset
-    
+
+    def getName(self):
+        return self.name
+
     def get(self):
         return(self.name+" "+ str(self.offset))
+    
 
 class Function:
     name = ""
@@ -1725,6 +1779,9 @@ class Function:
     def add_argument(self,argument):
         self.list_argument.append(argument.get())
 
+    def getName(self):
+        return self.name
+
     def get(self):
         if self.list_argument == []:
              return(self.name)
@@ -1742,6 +1799,9 @@ class Parameter:
         self.parMode = parMode
         self.offset = offset
     
+    def getName(self):
+        return self.name 
+    
     def get(self):
         return (self.name+" "+self.parMode+" "+str(self.offset))
     
@@ -1752,6 +1812,9 @@ class Temp_Variable:
     def __init__(self, name, offset):
         self.name = name
         self.offset = offset
+
+    def getName(self):
+        return self.name
     
     def get(self):
         return (self.name+" "+str(self.offset))
@@ -1791,10 +1854,3 @@ print()
 main_obj.print()
 
 print(str(main_start_quad) +" "+ str(main_framelenght))
-
-
-
-proc a
-    proc b
-proc a2
-    proc b
