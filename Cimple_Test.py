@@ -6,6 +6,7 @@
 # cs03390
 
 import sys
+import re
 
 #=============================================================
 #                   Lektikos Analyths
@@ -100,13 +101,17 @@ def lexer(file_counters):
             elif(char in "."):
                 next_state = 12
                 if(comment_counter != 1):
-                    if(file.read(200) not in " "):
-                        file.close()
-                        sys.exit("Code / Comments after '.' character is/are not acceptable. Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                        ",column: " +(str(file_counters[4] -1)))
-                    else:
-                        print("System exited successfully!")
-                        ##########Code exits#########
+                    txt = file.read(200)
+                    txt = re.sub(r"[\n\t\r ]*","",txt)
+                    print(txt)
+                    for line in txt:
+                        if( len(line) >= 1 ):
+                            file.close()
+                            sys.exit("Code / Comments after '.' character is/are not acceptable. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                            ",column: " +(str(file_counters[4] -1)))
+                        
+                    print("System exited successfully!")
+                    ##########Code exits#########
             else:
                 if(comment_counter != 1):         
                     file.close()
@@ -348,6 +353,7 @@ def varlist(file_counters):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
+            addVars(word)
 
             i = main_obj.Search(word,main_obj.scope)
             if (i != -1):
@@ -914,6 +920,7 @@ def forcaseStat(file_counters):
 
                 statements(file_counters)
 
+                nextquad()
                 quadList.append(genquad(quads,"jump","","",p1Quad))
                 backpatch(CondFalse,quads + 1)
             else:
@@ -1648,7 +1655,7 @@ def addVars(temp):
 def write_quads_to_file():
     global quadList
 
-    with open("quadList.txt","w") as filehandle:
+    with open("quadList.int","w") as filehandle:
         for quad in quadList:
             filehandle.write('%s\n' %quad)
 
@@ -1662,6 +1669,7 @@ def endiamesos_kwdikas():
             addVars(va)
 
         with open("endiamesos.c","w") as filehandle:
+            filehandle.write("#include <stdio.h>\n\n")
             filehandle.write("int main()\n{\n")
             filehandle.write("\tint %s;\n" %var)
             for quad in quadList:
@@ -1674,8 +1682,11 @@ def endiamesos_kwdikas():
                 if ("+" in quad) or ("-" in quad) or ("*" in quad) or ("/" in quad):
                     filehandle.write('\tL_%s: %s = %s %s %s;\t//%s\n' %(quad[0],quad[4],quad[2],quad[1],quad[3],quad[1:]))
                     continue
-                if ("<" in quad) or (">" in quad) or ("<>" in quad) or ("<=" in quad)  or ("=" in quad) or (">=" in quad):
+                if ("<" in quad) or (">" in quad) or ("<=" in quad)  or ("=" in quad) or (">=" in quad):
                     filehandle.write('\tL_%s: if(%s %s %s) goto L_%s;\t//%s\n' %(quad[0],quad[2],quad[1],quad[3],quad[4],quad[1:]))
+                    continue
+                if ("<>" in quad):
+                    filehandle.write('\tL_%s: if(%s != %s) goto L_%s;\t//%s\n' %(quad[0],quad[2],quad[3],quad[4],quad[1:]))
                     continue
                 if "jump" in quad:
                     filehandle.write('\tL_%s: goto L_%s;\t//%s\n' %(quad[0],quad[4],quad[1:]))
@@ -1683,7 +1694,19 @@ def endiamesos_kwdikas():
                 if "halt" in quad:
                     filehandle.write('\tL_%s: {} \n' %quad[0])
                     continue
+                if "inp" in quad:
+                    filehandle.write('\tL_'+str(quad[0])+': scanf("%d", &'+ quad[2]+');\t//%s\n' %quad[1:]) 
+                    continue
+                if "out" in quad:
+                    filehandle.write('\tL_'+str(quad[0])+': printf("%d\\n",'+ quad[2]+');\t//%s\n' %quad[1:])
+                    continue
+                if "retv" in quad:
+                    filehandle.write('\tL_'+str(quad[0])+': return ('+ quad[2]+');\t//%s\n' %quad[1:])
+                    continue
             filehandle.write("}")
+    
+    else:
+        print("Unable to create .c file if your program contains functions / procedures\n")
 
 #======================================================================
 #                   End of Endiamesos Kwdikas
