@@ -110,7 +110,7 @@ def lexer(file_counters):
                             sys.exit("Code / Comments after '.' character is/are not acceptable. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                             ",column: " +(str(file_counters[4] -1)))
                         
-                    print("System exited successfully!")
+                    print("Lexer exited successfully!")
                     ##########Code exits#########
             else:
                 if(comment_counter != 1):         
@@ -1410,10 +1410,12 @@ def boolfactor(file_counters):
 def expression(file_counters):
     global word,token, quadList, quads #,main_obj
 
-    optionalSign(file_counters)
+    sign = optionalSign(file_counters)
 
 
     t1 = term(file_counters)
+    if sign != None:
+        t1 = sign + str(t1)
 
     while(token == "addOperatortk"):
         op = word
@@ -1570,10 +1572,12 @@ def idtail(file_counters,function_name):
 #============ OPTIONALSIGN ===================
 def optionalSign(file_counters):
     global word, token
-
+    
     if(token == "addOperatortk"):
-    	word, token = lexer(file_counters)
-    	print(word+" "+token)
+        sign = word
+        word, token = lexer(file_counters)
+        print(word+" "+token)
+        return sign
 #============ OPTIONALSIGN ===================
 
 
@@ -1704,8 +1708,11 @@ def endiamesos_kwdikas():
                 if ("+" in quad) or ("-" in quad) or ("*" in quad) or ("/" in quad):
                     filehandle.write('\tL_%s: %s = %s %s %s;\t//%s\n' %(quad[0],quad[4],quad[2],quad[1],quad[3],quad[1:]))
                     continue
-                if ("<" in quad) or (">" in quad) or ("<=" in quad)  or ("=" in quad) or (">=" in quad):
+                if ("<" in quad) or (">" in quad) or ("<=" in quad) or (">=" in quad):
                     filehandle.write('\tL_%s: if(%s %s %s) goto L_%s;\t//%s\n' %(quad[0],quad[2],quad[1],quad[3],quad[4],quad[1:]))
+                    continue
+                if ("=" in quad):
+                    filehandle.write('\tL_%s: if(%s == %s) goto L_%s;\t//%s\n' %(quad[0],quad[2],quad[3],quad[4],quad[1:]))
                     continue
                 if ("<>" in quad):
                     filehandle.write('\tL_%s: if(%s != %s) goto L_%s;\t//%s\n' %(quad[0],quad[2],quad[3],quad[4],quad[1:]))
