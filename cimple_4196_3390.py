@@ -986,6 +986,8 @@ def incaseStat(file_counters):
 
             C = condition(file_counters)
 
+            print(C)
+
             if(word == ')'):                
                 word, token = lexer(file_counters)
                 print(word+" "+token)
@@ -993,8 +995,9 @@ def incaseStat(file_counters):
                 CondTrue = C[0]
                 CondFalse = C[1]
                 
-                backpatch(CondTrue,nextquad())
-                genquad(quads,":=","0","",w)
+                backpatch(CondTrue,quads + 1)
+                nextquad()
+                quadList.append(genquad(quads,":=","0","",w))
 
                 statements(file_counters)
 
@@ -1009,7 +1012,7 @@ def incaseStat(file_counters):
             sys.exit("Syntax Error. Keyword '(' expected here in order to start case condition. Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
 
-    quadList.append(genquad(nextquad(),":=",w,"0",p1Quad))
+    quadList.append(genquad(nextquad(),"=",w,"0",p1Quad))
 #============ INCASESTAT ===================
 
 #============ CALLSTAT ====================== 
@@ -1678,23 +1681,29 @@ def addVars(temp):
     else:
         var += ""+str(temp)
 
-def write_quads_to_file():
+def write_quads_to_file(x):
     global quadList
 
-    with open("quadList.int","w") as filehandle:
+    x = x.replace(".ci",".int")
+
+    print(x)
+
+    with open(x,"w") as filehandle:
         for quad in quadList:
             filehandle.write('%s\n' %quad)
 
 
-def endiamesos_kwdikas():
+def endiamesos_kwdikas(x):
     global quadList, function_names,var_counter
+
+    x = x.replace(".ci",".c")
 
     if function_names == []:  
         for v in range(0,var_counter):
             va = "T_"+str(v)
             addVars(va)
 
-        with open("endiamesos.c","w") as filehandle:
+        with open(x,"w") as filehandle:
             filehandle.write("#include <stdio.h>\n\n")
             filehandle.write("int main()\n{\n")
             filehandle.write("\tint %s;\n" %var)
@@ -1881,13 +1890,22 @@ class Argument:
         return (self.name+" ")
 
 #==================== MAIN ============================================
+tmp_name = ""
 if(len(sys.argv) < 2):
     sys.exit("Error: No file given!")
 elif(len(sys.argv) > 2):
     sys.exit("More than one files given!")
 else:
-    file = open(sys.argv[1], "r")
+    filename = sys.argv[1]
 
+    tmp_name = (filename + '.')[:-1]
+
+    print(id(filename))
+    print(id(tmp_name))
+    
+    if((filename.split('.')[-1]) == "ci"):
+        file = open(filename, "r")
+    
 
 word, token = lexer(file_counters)
 print(word+" "+token)
@@ -1899,8 +1917,8 @@ objects_list.append(main_obj)
 program(file_counters)
 print(quadList)
 
-write_quads_to_file()
-endiamesos_kwdikas()
+write_quads_to_file(tmp_name)
+endiamesos_kwdikas(tmp_name)
 
 print()
 main_obj.print()
