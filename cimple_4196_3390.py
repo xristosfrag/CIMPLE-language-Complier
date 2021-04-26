@@ -263,7 +263,7 @@ def program(file_counters):
 
 #============ BLOCK ================
 def block(file_counters,name):
-    global word,token,temp,quadList,program_name, quads, counter_blocks #, objects_list,main_obj,counter_blocks,main_start_quad,main_framelenght
+    global word,token,temp,quadList,program_name, quads, counter_blocks , objects_list,main_obj,main_start_quad,main_framelenght
 
     counter_blocks += 1
 
@@ -276,7 +276,7 @@ def block(file_counters,name):
         main_start_quad = quads + 1
     else:
         quadList.append(genquad(quads,"begin_block",name,"",""))
-        #main_obj.pinakas_symvolwn[main_obj.scope-1][-1].set_start_quad(quads+1)
+        main_obj.pinakas_symvolwn[main_obj.scope-1][-1].set_start_quad(quads+1)
 
     statements(file_counters)
     if(name == program_name):
@@ -286,19 +286,18 @@ def block(file_counters,name):
     nextquad()
     if('_' in name):
         name = name[:-1]
-        #main_framelenght = main_obj.offsets[0] + 4
+        main_framelenght = main_obj.offsets[0] + 4
     quadList.append(genquad(quads,"end_block",name,"",""))
 
     counter_blocks -= 1
    
-    '''if(len(main_obj.offsets) >= 2):
+    if(len(main_obj.offsets) >= 2):
         objects_list[len(objects_list) -1].set_framelength(main_obj.offsets[len(objects_list)-1] + 4)
         
 
     main_obj.print()
     main_obj.remove_scope()
     del objects_list[-1]
-    '''
 #============ BLOCK ================
 
 #============ DECLARATIONS ================  
@@ -322,12 +321,12 @@ def declarations(file_counters):
 
 #============ VARLIST =====================
 def varlist(file_counters):
-    global word,token,variables #,main_obj
+    global word,token,variables ,main_obj
     count_vars, count_commas = 0, 0
 
     if(token == "keywordtk"):
 
-        '''i = main_obj.Search(word,main_obj.scope)
+        i = main_obj.Search(word,main_obj.scope)
         if (i != -1):
             file.close()
             sys.exit("Variable name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -336,7 +335,6 @@ def varlist(file_counters):
         main_obj.change_offset()
         var = Variable(word, main_obj.offsets[main_obj.scope])
         main_obj.append(var)
-        '''
 
         count_vars += 1
         variables.append(word)
@@ -358,7 +356,7 @@ def varlist(file_counters):
             addVars(word)
             variables.append(word)
 
-            '''i = main_obj.Search(word,main_obj.scope)
+            i = main_obj.Search(word,main_obj.scope)
             if (i != -1):
                 file.close()
                 sys.exit("Variable name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -367,7 +365,6 @@ def varlist(file_counters):
             main_obj.change_offset()
             var = Variable(word, main_obj.offsets[main_obj.scope])
             main_obj.append(var)
-            '''
 
             word, token = lexer(file_counters)
             print(word+" "+token)
@@ -396,15 +393,16 @@ def subprograms(file_counters):
 
 #============ SUBPROGRAM ================= 
 def subprogram(file_counters):
-    global word, token,temp,quadList,function_names #,objects_list,main_obj
+    global word, token,temp,quadList,function_names ,objects_list,main_obj
     id = ""
+    return_counter = 0
     if(token == "functiontk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
             id = word
             function_names.append(id)
-            '''
+
             i = main_obj.Search(word)
             if i!=-1:
                 file.close()
@@ -419,7 +417,6 @@ def subprogram(file_counters):
 
             main_obj.append(function_obj)
             main_obj.add_scope()
-            '''
 
 
             word, token = lexer(file_counters)
@@ -428,7 +425,7 @@ def subprogram(file_counters):
             if(word == '('):
                 word, token = lexer(file_counters)
                 print(word+" "+token)
-                formalparlist(file_counters) #, function_obj)
+                formalparlist(file_counters, function_obj)
             
                 if(word == ')'):
                     word, token = lexer(file_counters)
@@ -438,6 +435,10 @@ def subprogram(file_counters):
                     block(file_counters,id)
 
                     temp = ""
+                    if(return_counter == 0):
+                        file.close()
+                        sys.exit("Syntax Error. 'Return' was expected in function '"+id+"'. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                        ",column: " +(str(file_counters[4] - len(word))))
                     return True
                 else:
                     file.close()
@@ -456,29 +457,25 @@ def subprogram(file_counters):
             id = word
             function_names.append(id)
 
-            '''
             i = main_obj.Search(word)
             if i!=-1:
                 file.close()
                 sys.exit("Procedure name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                 ",column: " +(str(file_counters[4] - len(word))))
 
-            
-            
 
             function_obj = Function(id)
             objects_list.append(function_obj)
 
             main_obj.append(function_obj)
             main_obj.add_scope()
-            '''
 
             word, token = lexer(file_counters)
             print(word+" "+token)
             if(word == '('):
                 word, token = lexer(file_counters)
                 print(word+" "+token)
-                formalparlist(file_counters)   #, function_obj)
+                formalparlist(file_counters, function_obj)
         
                 if(word == ')'):
                     word, token = lexer(file_counters)
@@ -489,6 +486,11 @@ def subprogram(file_counters):
                     block(file_counters,id)
 
                     temp = ""
+
+                    if(return_counter > 0):
+                        file.close()
+                        sys.exit("Syntax Error. 'Return' is not accepted in procedure '"+id+"'. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                            ",column: " +(str(file_counters[4] - len(word))))
                     return True
                 else:
                     file.close()
@@ -506,15 +508,15 @@ def subprogram(file_counters):
 
 #============ FORMALPARLIST ================
 
-def formalparlist(file_counters):    #, function_obj):
+def formalparlist(file_counters, function_obj):
     global word, token
     if((token == "intk") or (token == "inouttk")):
-        formalparitem(file_counters) #, function_obj)
+        formalparitem(file_counters, function_obj)
 
         while(word == ','):
             word, token = lexer(file_counters)
             print(word+" "+token)
-            formalparitem(file_counters)  #, function_obj)
+            formalparitem(file_counters, function_obj)
             if(word != ')'):
                 if(word != ','):
                     file.close()
@@ -523,22 +525,20 @@ def formalparlist(file_counters):    #, function_obj):
 #============ FORMALPARLIST ================
 
 #============ FORMALPARITEM ================
-def formalparitem(file_counters): #, function_obj):
-    global word, token,quadList, quads #, main_obj
+def formalparitem(file_counters, function_obj):
+    global word, token,quadList, quads, main_obj
     if(token == "intk"):
 
-        #arg = Argument("in")
-        #function_obj.add_argument(arg)
+        arg = Argument("in")
+        function_obj.add_argument(arg)
 
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):              
           
-            '''
             main_obj.change_offset()
             par = Parameter(word,"CV",main_obj.offsets[main_obj.scope])
             main_obj.append(par)
-            '''
 
             word, token = lexer(file_counters)
             print(word+" "+token)
@@ -548,17 +548,16 @@ def formalparitem(file_counters): #, function_obj):
             ",column: " +(str(file_counters[4] - len(word))))
     elif(token == "inouttk"):
 
-        #arg = Argument("inout")
-        #function_obj.add_argument(arg)
+        arg = Argument("inout")
+        function_obj.add_argument(arg)
 
         word, token = lexer(file_counters)
         print(word+" "+token)
         if(token == "keywordtk"):
-            '''    
+
             main_obj.change_offset()
             par = Parameter(word,"REF",main_obj.offsets[main_obj.scope])
             main_obj.append(par)
-            '''
 
             word, token = lexer(file_counters)
             print(word+" "+token)
@@ -725,6 +724,12 @@ def asgnStat(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
+            i = main_obj.Search(z)
+            if i==-1:
+                file.close()
+                sys.exit("Keyword '"+z+"' unidentified. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
+
             exp = expression(file_counters)
 
             nextquad()
@@ -732,7 +737,10 @@ def asgnStat(file_counters):
 
         else:
             file.close()
-            if(word in strict_words):
+            if(z in function_names):
+                sys.exit("Syntax Error. Keyword ':=' excpected before function call. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
+            elif(word in strict_words):
                 sys.exit("Syntax Error. Keyword ':=' excpected here. 'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(int((file_counters[1] + 1) / 2))+
                 ",column: " +(str(file_counters[4] - len(word))))
             elif(token == "numbertk"):
@@ -958,7 +966,7 @@ def forcaseStat(file_counters):
 
 #============ INCASESTAT ===================
 def incaseStat(file_counters):
-    global word, token, quadList, quads #,main_obj
+    global word, token, quadList, quads, main_obj
 
     if(token != "casetk"):
         file.close()
@@ -969,11 +977,10 @@ def incaseStat(file_counters):
     p1Quad = nextquad()
     quadList.append(genquad(quads,":=","1","",w))
 
-    '''
+
     main_obj.change_offset()
     temp_var_obj = Temp_Variable(w,main_obj.offsets[main_obj.scope])
     main_obj.append(temp_var_obj)
-    '''
 
     while(token == "casetk"):
         word, token = lexer(file_counters)
@@ -1155,7 +1162,7 @@ def printStat(file_counters):
 
 #============ ACTUALPARLIST ===================
 def actualparlist(file_counters,function_name,parameters):
-    global word, token,quadList, quads #, main_obj
+    global word, token,quadList, quads, main_obj
     flag = token
     insout, commas = 0, 0
     ret = ""
@@ -1192,12 +1199,10 @@ def actualparlist(file_counters,function_name,parameters):
         if(function_name in function_names):
             w = newtemp()
 
-            '''
             if caller == True:
                 main_obj.change_offset()
                 temp_var_obj = Temp_Variable(w,main_obj.offsets[main_obj.scope])
                 main_obj.append(temp_var_obj) 
-            '''
 
             parameters.append(["par",w,"RET"])
             parameters.append(["call",function_name,""])
@@ -1411,7 +1416,7 @@ def boolfactor(file_counters):
 
 #============ EXPRESION =======================
 def expression(file_counters):
-    global word,token, quadList, quads #,main_obj
+    global word,token, quadList, quads ,main_obj
 
     sign = optionalSign(file_counters)
 
@@ -1433,18 +1438,17 @@ def expression(file_counters):
         quadList.append(genquad(quads,op,t1,t2,w))      #endiamesou
         t1 = w
 
-        '''
+
         main_obj.change_offset()
         temp_var_obj = Temp_Variable(w,main_obj.offsets[main_obj.scope])
         main_obj.append(temp_var_obj)
-        '''
 
     return t1  
 #============ EXPRESION =================== 
 
 #============ TERM ======================== 
 def term(file_counters):
-    global word,token, quadList, quads #, main_obj
+    global word,token, quadList, quads , main_obj
 
     f1 = factor(file_counters)
     
@@ -1460,11 +1464,10 @@ def term(file_counters):
         quadList.append(genquad(quads,mul,f1,f2,w))
         f1 = w
 
-        '''
+
         main_obj.change_offset()
         temp_var_obj = Temp_Variable(w,main_obj.offsets[main_obj.scope])
         main_obj.append(temp_var_obj)
-        '''
         
     return f1
 
@@ -1472,7 +1475,7 @@ def term(file_counters):
 
 #============ FACTOR =================== 
 def factor(file_counters):
-    global word,token
+    global word, token, main_obj
     ret = ""
 
     if(token == "numbertk"):
@@ -1499,12 +1502,11 @@ def factor(file_counters):
     
     elif(token == "keywordtk"): 
 
-        '''i = main_obj.Search(word)
+        i = main_obj.Search(word)
         if i==-1:
             file.close()
             sys.exit("Keyword '"+word+"' unidentified. Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
-        '''
 
 
         ret = word
@@ -1685,8 +1687,6 @@ def write_quads_to_file(x):
     global quadList
 
     x = x.replace(".ci",".int")
-
-    print(x)
 
     with open(x,"w") as filehandle:
         for quad in quadList:
@@ -1899,9 +1899,6 @@ else:
     filename = sys.argv[1]
 
     tmp_name = (filename + '.')[:-1]
-
-    print(id(filename))
-    print(id(tmp_name))
     
     if((filename.split('.')[-1]) == "ci"):
         file = open(filename, "r")
