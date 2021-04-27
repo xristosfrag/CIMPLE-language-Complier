@@ -44,6 +44,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col, 
 word, token, variables, temp, elseflag, whileflag, var_counter,program_name,function_names,var,counter_blocks = "","", list(), "", 0, 0, 0, "",[],"",0
+return_counter = -1
 main_framelenght, main_start_quad = -1, -1
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
@@ -326,11 +327,12 @@ def varlist(file_counters):
 
     if(token == "keywordtk"):
 
-        i = main_obj.Search(word,main_obj.scope)
+        i = main_obj.Search(word,None,main_obj.scope)
         if (i != -1):
             file.close()
             sys.exit("Variable name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                 ",column: " +(str(file_counters[4] - len(word))))
+        
         
         main_obj.change_offset()
         var = Variable(word, main_obj.offsets[main_obj.scope])
@@ -356,7 +358,7 @@ def varlist(file_counters):
             addVars(word)
             variables.append(word)
 
-            i = main_obj.Search(word,main_obj.scope)
+            i = main_obj.Search(word,None,main_obj.scope)
             if (i != -1):
                 file.close()
                 sys.exit("Variable name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -393,7 +395,7 @@ def subprograms(file_counters):
 
 #============ SUBPROGRAM ================= 
 def subprogram(file_counters):
-    global word, token,temp,quadList,function_names ,objects_list,main_obj
+    global word, token,temp,quadList,function_names ,objects_list,main_obj, return_counter
     id = ""
     return_counter = 0
     if(token == "functiontk"):
@@ -403,7 +405,7 @@ def subprogram(file_counters):
             id = word
             function_names.append(id)
 
-            i = main_obj.Search(word)
+            i = main_obj.Search(word,None)
             if i!=-1:
                 file.close()
                 sys.exit("Function name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -457,7 +459,7 @@ def subprogram(file_counters):
             id = word
             function_names.append(id)
 
-            i = main_obj.Search(word)
+            i = main_obj.Search(word,None)
             if i!=-1:
                 file.close()
                 sys.exit("Procedure name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -656,7 +658,7 @@ def statements(file_counters):
 
 #============ STATEMENT ===================   
 def statement(file_counters):
-    global word,token
+    global word,token, return_counter
 
     if(token == "keywordtk"):
         asgnStat(file_counters)
@@ -685,6 +687,7 @@ def statement(file_counters):
         print(word+" "+token)
         callStat(file_counters)
     elif(token == "returntk"):
+        return_counter += 1
         word, token = lexer(file_counters)
         print(word+" "+token)
         returnStat(file_counters)
@@ -724,7 +727,7 @@ def asgnStat(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            i = main_obj.Search(z)
+            i = main_obj.Search(z,None)
             if i==-1:
                 file.close()
                 sys.exit("Keyword '"+z+"' unidentified. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -1024,10 +1027,20 @@ def incaseStat(file_counters):
 
 #============ CALLSTAT ====================== 
 def callStat(file_counters):
-    global word, token
+    global word, token, main_obj
 
     if(token == "keywordtk"):
         id = word
+
+
+        i = main_obj.Search(word,"function",main_obj.scope)
+        if i==-1:
+            file.close()
+            sys.exit("Keyword '"+id+"' is not a Procedure. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
+
+
+
         word, token = lexer(file_counters)
         print(word+" "+token)
 
@@ -1502,7 +1515,7 @@ def factor(file_counters):
     
     elif(token == "keywordtk"): 
 
-        i = main_obj.Search(word)
+        i = main_obj.Search(word,None)
         if i==-1:
             file.close()
             sys.exit("Keyword '"+word+"' unidentified. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -1512,7 +1525,16 @@ def factor(file_counters):
         ret = word
         word, token = lexer(file_counters)
         print(word+" "+token)
-        e = idtail(file_counters,ret)
+
+        # elegxei kai th ( wste na mh pianei kai tis aples metavlhtes
+        if(word == "("):
+            i = main_obj.Search(ret,"function",main_obj.scope)
+            if i==-1:
+                file.close()
+                sys.exit("Keyword '"+ret+"' is not a Function. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(ret))))
+    
+        e = idtail(file_counters,ret,i)
         if(e != ""):
             ret = e
 
@@ -1535,7 +1557,7 @@ def factor(file_counters):
 #============ FACTOR ===================    
 
 #============ IDTAIL ===================
-def idtail(file_counters,function_name):
+def idtail(file_counters,function_name,arguments):
     global word,token
     ret = ""
     
@@ -1560,12 +1582,24 @@ def idtail(file_counters,function_name):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            #print(parameters)
+
+            tmp_ar = []
+
             for q in parameters:
+
+                if q[2] == "CV" or q[2] == "REF":
+                    tmp_ar.append(q[2])
 
                 nextquad()
                 quadList.append(genquad(quads,q[0],q[1],q[2],""))
-        
+            t = 0
+            for q in tmp_ar:
+                if isinstance(arguments,(list,[])):
+                    
+                    if (arguments[t] == "in " and tmp_ar[t] != "CV") or (arguments[t] == "inout " and tmp_ar[t] != "REF"):
+                        file.close()
+                        sys.exit("Syntax Error. Missmatch arguments of funtion/procedure '"+function_name+"'. Error at line: "+str(int((file_counters[1] + 1) / 2)))
+                t += 1
         else:
             file.close()
             sys.exit("Syntax Error. Keyword ')' expected here. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -1787,11 +1821,24 @@ class ps:
                 k += " ["+ row[j].get()+"] "
             print(k)    
 
-    def Search(self,name,scope=-1):
+    def Search(self,name,S_type,scope=-1):
+        
+        if S_type == "function":
+            row = self.pinakas_symvolwn[scope-1]
+            for i in range(1,len(row)):
+                if name == row[i].getName():
+                    print(type(Function))
+                    #if type(row[i]) is type(Function):
+                    if isinstance(row[i],Function):
+                        return row[i].list_argument
+            return -1
+        
         if scope != -1:
             row = self.pinakas_symvolwn[scope]
             for i in range(1,len(row)):
                 if name == row[i].getName():
+                    #if isinstance(row[i],Function):
+                        #return -1
                     return row[i].getName()
             #print("Entity '"+name+"' not found")
             return -1
@@ -1800,6 +1847,8 @@ class ps:
                 for j in range(1,len(row)):
                     print(row[j].getName()+ " "+ name)
                     if name == row[j].getName():
+                        #if isinstance(row[j],Function):
+                            #return -1
                         return row[j].getName()
             #print("Entity '"+name+"' not found")
             return -1
