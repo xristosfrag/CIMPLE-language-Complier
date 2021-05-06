@@ -44,7 +44,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col, 
 word, token, variables, temp, elseflag, whileflag, var_counter,program_name,function_names,var,counter_blocks = "","", list(), "", 0, 0, 0, "",[],"",0
-return_counter = -1
+return_counter, asm_file = -1, 0
 main_framelenght, main_start_quad = -1, -1
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
@@ -491,8 +491,7 @@ def subprogram(file_counters):
 
                     if(return_counter > 0):
                         file.close()
-                        sys.exit("Syntax Error. 'Return' is not accepted in procedure '"+id+"'. Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                            ",column: " +(str(file_counters[4] - len(word))))
+                        sys.exit("Syntax Error. 'Return' is not accepted in procedure '"+id+"'.")
                     return True
                 else:
                     file.close()
@@ -538,6 +537,12 @@ def formalparitem(file_counters, function_obj):
         print(word+" "+token)
         if(token == "keywordtk"):              
           
+            i = main_obj.Search(word,"parameter",main_obj.scope)
+            if i!=-1:
+                file.close()
+                sys.exit("Parameter name '"+word+"' already in use. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word)))) 
+
             main_obj.change_offset()
             par = Parameter(word,"CV",main_obj.offsets[main_obj.scope])
             main_obj.append(par)
@@ -658,7 +663,7 @@ def statements(file_counters):
 
 #============ STATEMENT ===================   
 def statement(file_counters):
-    global word,token, return_counter
+    global word,token, return_counter, counter_blocks
 
     if(token == "keywordtk"):
         asgnStat(file_counters)
@@ -687,10 +692,15 @@ def statement(file_counters):
         print(word+" "+token)
         callStat(file_counters)
     elif(token == "returntk"):
-        return_counter += 1
-        word, token = lexer(file_counters)
-        print(word+" "+token)
-        returnStat(file_counters)
+        if counter_blocks != 1:
+            return_counter += 1
+            word, token = lexer(file_counters)
+            print(word+" "+token)
+            returnStat(file_counters)
+        else:
+            file.close()
+            sys.exit("Syntax Error. Program's main can not have a 'return' statement. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
     elif(token == "inputtk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
@@ -727,8 +737,12 @@ def asgnStat(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
-            i = main_obj.Search(z,None)
-            if i==-1:
+            i = main_obj.Search(z,"asign")
+            if "forp" in i:
+                file.close()
+                sys.exit("Keyword '"+z+"' is already used as function/procedure name. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
+            if i == -1:
                 file.close()
                 sys.exit("Keyword '"+z+"' unidentified. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                 ",column: " +(str(file_counters[4] - len(word))))
@@ -1822,6 +1836,23 @@ class ps:
             print(k)    
 
     def Search(self,name,S_type,scope=-1):
+
+        if S_type == "asign":
+            for row in self.pinakas_symvolwn:
+                for j in range(1,len(row)):
+                    print(row[j].getName()+ " "+ name)
+                    if name == row[j].getName():
+                        if isinstance(row[j],Function):
+                            #return -1
+                            return row[j].getName()+"forp"      # yparxei ws synarthsh
+                        return row[j].getName()                 # yparxei to onoma
+            #print("Entity '"+name+"' not found")
+            return -1                                           # den yparxei
+
+        if S_type == "parameter":
+            row = self.pinakas_symvolwn[scope-1]
+            if name == row[-1].getName():
+                return row[-1].getName()
         
         if S_type == "function":
             row = self.pinakas_symvolwn[scope-1]
@@ -1852,6 +1883,18 @@ class ps:
                         return row[j].getName()
             #print("Entity '"+name+"' not found")
             return -1
+
+    def Search_scope(self,name):
+        for i in range(len(self.pinakas_symvolwn),0,-1):        # i = scope
+            for j in range(1,len(self.pinakas_symvolwn[i])):    # j = stoixeia tou scope
+                if self.pinakas_symvolwn[i][j].getName() == name:
+                    return i
+    
+    def Search_offset(self,name,scope):
+        row = self.pinakas_symvolwn[scope]
+        for j in range(1,len(row)):
+            if name == row[j].getName():
+                return self.pinakas_symvolwn[scope][j].offset
 
 class Variable:
     name = ""
@@ -1937,6 +1980,50 @@ class Argument:
 
     def get(self):
         return (self.name+" ")
+#======================================================================
+#                  End of Pinakas Symvolwn
+#======================================================================
+
+#======================================================================
+#                  Telikos Kwdikas
+#======================================================================
+def intialize_asm_file(x):
+    global quadList,asm_file
+
+    t_counter = 0
+    x = x.replace(".ci",".asm")
+
+    asm_file = open(x, "w")
+    asm_file.write('L0: b Lmain\n')
+
+def paragwgh_telikou_kwdika(x):
+    global quadList,asm_file
+
+    for quad in quadList:
+        if quad[1] == "begin_block":
+            asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
+        if quad[1] == "+":
+            asm_file.write('L_%s:', (quad[0]+1) )
+            
+            loadvr(quad[2],1)
+            loadvr(quad[3],2)
+            asm_file.write("add $t1,$t1,$t2")
+            storerv(1,)
+
+def loadvr(v,r):
+    global quadList, asm_file, main_obj
+
+    if(v.isdigit()):
+        asm_file.write('li $t%s, %s\n',  (r, v))
+    scope = main_obj.Search_scope(v)
+
+    if (scope == 0):
+        of = main_obj.Search_offset(v,scope)
+        asm_file.write("lw $t%s, -%s($s0)\n", r,of)
+
+#======================================================================
+#                 End of Telikos Kwdikas
+#======================================================================
 
 #==================== MAIN ============================================
 tmp_name = ""
@@ -1970,3 +2057,5 @@ print()
 main_obj.print()
 
 print(str(main_start_quad) +" "+ str(main_framelenght))
+
+paragwgh_telikou_kwdika(tmp_name)

@@ -1,0 +1,26 @@
+program ForCase
+
+		declare x,k,t,y;
+		declare count,mult;
+	
+	# main #
+	{
+		input(k);
+		input(y);
+		count := 0;
+		t:=1;
+		mult :=1;
+
+		forcase
+			case (k>1000) t := t*30;
+			case (k<500) t:=t-100;
+			default t:=t+5;
+		  ;
+		while ( count <= y)
+		{
+			mult := mult * count;
+			count := count + 10;
+			
+		};
+		print(mult)
+	}.

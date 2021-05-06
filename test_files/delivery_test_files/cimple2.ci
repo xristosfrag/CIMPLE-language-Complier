@@ -1,0 +1,15 @@
+program MaxVal
+
+	declare min,max;
+	
+	{
+		min:=0;
+		input(max);
+		while(min>(-1))
+		{
+			input(min);
+			if(max<min) max:=min;
+			
+		};
+		print(max)
+	}.
