@@ -1994,14 +1994,14 @@ class Argument:
 # epeidh otan ftiaxname tis tetrades orisame to quads na ksekinaei apo to 0, gia na emfanizontai swsta ta labels sto asm file
 # afksanoume ton ari8mo kata 1.
 
-def intialize_asm_file(x):
-    global quadList,asm_file
+def intialize_asm_file():
+    global quadList,asm_file, main_framelenght
 
     t_counter = 0
-    x = x.replace(".ci",".asm")
-
-    asm_file = open(x, "w")
+    
     asm_file.write('L0: b Lmain\n')
+    asm_file.write("addi $sp, $sp, %s\n" %main_framelenght)
+    asm_file.write("$s0,$sp\n")
 
 def paragwgh_telikou_kwdika(x):
     global quadList,asm_file
@@ -2076,12 +2076,44 @@ def paragwgh_telikou_kwdika(x):
             parameters = 0
 
         elif quad[2] == "par":
-            parameters = 1
+            parameters = +1
             if parameters == 1 :
-                asm_file.write("$fp, $sp, %s",fr)
+                asm_file.write("$fp, $sp, %s\n",fr)
+            if quad[3] == "CV":
+                asm_file.write("sw $t0, -(12 +4*%s)($fp)\n",parameters)
+            elif quad[3] == "REF":
 
-        if quad[1] == "begin_block":
-            asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
+                functions_Scope = main_obj.Search_scope(function_name)
+
+                scope = main_obj.Search_scope(metavlhth_x)
+                of = main_obj.Search_offset(metavlhth_x,scope)
+                entity = main_obj.Get_Entity(scope,of)
+
+                if functions_Scope == scope:
+
+                    if (isinstance(entity,'Parameter') and (entity.parMode == 'CV')):
+                        asm_file.write("$t0, $sp,-%s\n",of)
+                        asm_file.write("sw $t0, -(12 +4*%s)($fp)\n",parameters)
+                    elif (isinstance(entity,'Parameter') and (entity.parMode == 'REF')):
+                        asm_file.write("lw $t0, -%s($sp)\n",of)
+                        asm_file.write("sw $t0, -(12+4*%s)($fp)\n",parameters)
+
+                elif functions_Scope != scope:
+
+                    if isinstance(entity,"Variable") or (isinstance(entity,'Parameter') and (entity.parMode == 'CV')):
+                        gnvlcode(entity)
+                        asm_file.write("sw, $t0, -(12+4*%s)($fp)\n",parameters)
+                    elif isinstance(entity,"Variable") or (isinstance(entity,'Parameter') and (entity.parMode == 'REF')):
+                        gnvlcode(entity)
+                        asm_file.write("lw $t0, ($t0)\n")
+                        asm_file.write("sw $t0, -(12+4*%s)($fp)\n",parameters)
+
+            elif quad[3] == "RET":
+                asm_file.write("addi $t0, $sp, -%s\n",of)
+                asm_file.write("$t0,-8($fp)\n")
+
+        #if quad[1] == "begin_block":
+            #asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
         
 
 
@@ -2187,4 +2219,8 @@ main_obj.print()
 
 print(str(main_start_quad) +" "+ str(main_framelenght))
 
-paragwgh_telikou_kwdika(tmp_name)
+
+x = tmp_name.replace(".ci",".asm")
+asm_file = open(x, "w")
+intialize_asm_file()
+#paragwgh_telikou_kwdika(tmp_name)
