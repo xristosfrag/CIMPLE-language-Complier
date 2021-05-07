@@ -1896,6 +1896,9 @@ class ps:
             if name == row[j].getName():
                 return self.pinakas_symvolwn[scope][j].offset
 
+    def Get_Entity(self,i,j):
+        return self.pinakas_symvolwn[i][j]
+
 class Variable:
     name = ""
     offset = 0
@@ -1987,6 +1990,10 @@ class Argument:
 #======================================================================
 #                  Telikos Kwdikas
 #======================================================================
+
+# epeidh otan ftiaxname tis tetrades orisame to quads na ksekinaei apo to 0, gia na emfanizontai swsta ta labels sto asm file
+# afksanoume ton ari8mo kata 1.
+
 def intialize_asm_file(x):
     global quadList,asm_file
 
@@ -1999,28 +2006,150 @@ def intialize_asm_file(x):
 def paragwgh_telikou_kwdika(x):
     global quadList,asm_file
 
+    parameters = 0
+
     for quad in quadList:
-        if quad[1] == "begin_block":
-            asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
-        if quad[1] == "+":
+
+        if quad[1] == "jump":
+            asm_file.write("L%s: b L%s\n", (quad[0]+1),(quad[4]+1) )
+            parameters = 0
+            
+        elif quad[1] in "<=>=<>":
+            asm_file.write("L%s: ", (quad[0]+1) )
+            loadvr(quad[2],"t1")
+            loadvr(quad[3],"t2")
+            if quad[1] == "=":
+                asm_file.write("beq $t1, $t2, L%s\n", (quad[4]+1) )
+            elif quad[1] == "<":
+                asm_file.write("blt $t1, $t2, L%s\n", (quad[4]+1) )
+            elif quad[1] == ">":
+                asm_file.write("bgt $t1, $t2, L%s\n", (quad[4]+1) )
+            elif quad[1] == "<=":
+                asm_file.write("ble $t1, $t2, L%s\n", (quad[4]+1) )
+            elif quad[1] == ">=":
+                asm_file.write("bge $t1, $t2, L%s\n", (quad[4]+1) )
+            elif quad[1] == "<>":
+                asm_file.write("bne $t1, $t2, L%s\n", (quad[4]+1) )
+            parameters = 0
+
+        elif quad[1] == ":=":
+            asm_file.write("L%s: ", (quad[0]+1) )
+            loadvr(quad[2],"t1")
+            storerv(1,quad[4])
+            parameters = 0
+
+        elif quad[1] in "+-*/":
             asm_file.write('L_%s:', (quad[0]+1) )
             
-            loadvr(quad[2],1)
-            loadvr(quad[3],2)
-            asm_file.write("add $t1,$t1,$t2")
-            storerv(1,)
+            loadvr(quad[2],"t1")
+            loadvr(quad[3],"t2")
+            if quad[1] == "+":
+                asm_file.write("add $t1,$t1,$t2\n")
+            if quad[1] == "-":
+                asm_file.write("sub $t1,$t1,$t2\n")
+            if quad[1] == "*":
+                asm_file.write("mul $t1,$t1,$t2\n")
+            if quad[1] == "/":
+                asm_file.write("div $t1,$t1,$t2\n")
+            storerv(1,quad[4])
+            parameters = 0
+
+        elif quad[1] == "out":
+            asm_file.write('L_%s:', (quad[0]+1) )
+            asm_file.write("li $v0, 1\n")
+            loadvr(quad[2],"a0")
+            asm_file.write("syscall\n")
+            parameters = 0
+
+        elif quad[1] == "inp":
+            asm_file.write('L_%s:', (quad[0]+1) )
+            asm_file.write("li $v0, 5\n")
+            asm_file.write("syscall\n")
+            storerv("v0",quad[2])
+            parameters = 0
+
+        elif quad[2] == "retv":
+            asm_file.write('L_%s:', (quad[0]+1) )
+            loadvr(quad[2],"t1")
+            asm_file.write("lw $t0, -8($sp)\n")
+            asm_file.write("sw $t1, ($t0)\n")
+            parameters = 0
+
+        elif quad[2] == "par":
+            parameters = 1
+            if parameters == 1 :
+                asm_file.write("$fp, $sp, %s",fr)
+
+        if quad[1] == "begin_block":
+            asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
+        
+
+
+def gnvlcode(entity):
+    global asm_file, main_obj
+
+    temp_scope = main_obj.scope
+    asm_file.write("lw $t0, -4($sp)\n")
+    
+    while ((main_obj.Search(entity.getName,None,temp_scope) == -1) and (temp_scope >= 0)):
+        asm_file.write("lw $t0, -4($t0)\n")
+        temp_scope -= 1
+    asm_file.write("addi $t0, $t0, -%s\n", entity.offset)
 
 def loadvr(v,r):
-    global quadList, asm_file, main_obj
+    global asm_file, main_obj
 
     if(v.isdigit()):
-        asm_file.write('li $t%s, %s\n',  (r, v))
+        asm_file.write('li $%s, %s\n',  (r, v))
+    
     scope = main_obj.Search_scope(v)
+    of = main_obj.Search_offset(v,scope)
+    entity = main_obj.Get_Entity(scope,of)
 
-    if (scope == 0):
-        of = main_obj.Search_offset(v,scope)
-        asm_file.write("lw $t%s, -%s($s0)\n", r,of)
+    if (scope == 0 and isinstance(entity,'Variable')):    
+        asm_file.write("lw $%s, -%s($s0)\n", r,of)
+    
+    elif ( (main_obj.scope == scope and isinstance(entity,'Variable')) or 
+        (main_obj.scope == scope and isinstance(entity,'Parameter') and (entity.parMode == 'CV') ) or
+        (main_obj.scope == scope and isinstance(entity,'Temp_Variable') )
+    ):
+        asm_file.write("lw $%s, -%s($sp)\n", r,of)
+    elif (main_obj.scope == scope and isinstance(entity,'Parameter') and (entity.parMode == 'REF')):
+        asm_file.write("lw $t0, -%s($sp)\n", of)
+        asm_file.write("lw $%s, ($t0)\n", r)
+    elif ( main_obj.scope != scope and scope != 0 ):
+        if ( (isinstance(entity,'Variable')) or (isinstance(entity,'Parameter') and (entity.parMode == 'CV'))) :
+            gnvlcode(entity)
+            asm_file.write("lw $%s, ($t0)\n", r)
+        elif isinstance(entity,'Parameter') and (entity.parMode == 'REF'):
+            gnvlcode(entity)
+            asm_file.write("lw $t0, ($t0)\n")
+            asm_file.write("lw $%s, ($t0)\n", r)
 
+def storerv(r,v):       # r = kataxwrhths, v = sth mnhmh
+    global asm_file, main_obj
+
+    scope = main_obj.Search_scope(v)
+    of = main_obj.Search_offset(v,scope)
+    entity = main_obj.Get_Entity(scope,of)
+
+    if (scope == 0 and isinstance(entity,'Variable')):    
+        asm_file.write("sw $%s, -%s($s0)\n", r,of)
+    elif ( (main_obj.scope == scope and isinstance(entity,'Variable')) or 
+        (main_obj.scope == scope and isinstance(entity,'Parameter') and (entity.parMode == 'CV') ) or
+        (main_obj.scope == scope and isinstance(entity,'Temp_Variable')) ):
+        asm_file.write("sw $%s, -%s($sp)\n", r,of)
+    elif (main_obj.scope == scope and isinstance(entity,'Parameter') and (entity.parMode == 'REF')):
+        asm_file.write("lw $t0, -%s($sp)\n", of)
+        asm_file.write("sw $%s, ($t0)\n", r)
+    elif ( main_obj.scope != scope and scope != 0 ):
+        if ( (isinstance(entity,'Variable')) or (isinstance(entity,'Parameter') and (entity.parMode == 'CV'))) :
+            gnvlcode(entity)
+            asm_file.write("sw $%s, ($t0)\n", r)
+        elif isinstance(entity,'Parameter') and (entity.parMode == 'REF'):
+            gnvlcode(entity)
+            asm_file.write("lw $t0, ($t0)\n")
+            asm_file.write("sw $%s, ($t0)\n", r)
 #======================================================================
 #                 End of Telikos Kwdikas
 #======================================================================
