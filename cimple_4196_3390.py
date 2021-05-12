@@ -1550,6 +1550,7 @@ def factor(file_counters):
 
         # elegxei kai th ( wste na mh pianei kai tis aples metavlhtes
         if(word == "("):
+            print("++++++"+str(main_obj.scope))
             i = main_obj.Search(ret,"function",main_obj.scope)
             if i==-1:
                 file.close()
@@ -1864,12 +1865,24 @@ class ps:
                 return row[-1].getName()
         
         if S_type == "function":
-            row = self.pinakas_symvolwn[scope-1]
+            row = self.pinakas_symvolwn[scope]
             for i in range(1,len(row)):
+                #print(" --- "+row[i].getName())
                 if name == row[i].getName():
-                    print(type(Function))
+                    #print(" --- "+type(Function))
                     #if type(row[i]) is type(Function):
                     if isinstance(row[i],Function):
+                        print(row[i].list_argument)
+                        return row[i].list_argument
+
+            row = self.pinakas_symvolwn[scope-1]
+            for i in range(1,len(row)):
+                #print(" --- "+row[i].getName())
+                if name == row[i].getName():
+                    #print(" --- "+type(Function))
+                    #if type(row[i]) is type(Function):
+                    if isinstance(row[i],Function):
+                        print(row[i].list_argument)
                         return row[i].list_argument
             return -1
         
@@ -1885,7 +1898,7 @@ class ps:
         else:   
             for row in self.pinakas_symvolwn:
                 for j in range(1,len(row)):
-                    print(row[j].getName()+ " "+ name)
+                    #print(row[j].getName()+ " "+ name)
                     if name == row[j].getName():
                         #if isinstance(row[j],Function):
                             #return -1
@@ -1894,6 +1907,11 @@ class ps:
             return -1
 
     def Search_scope(self,name):
+        global program_name
+
+        if name+"_" == program_name:
+            return 0
+
         for i in range(len(self.pinakas_symvolwn)-1,-1,-1):        # i = scope
             #main_obj.print()
             row = self.pinakas_symvolwn[i]
@@ -2038,9 +2056,11 @@ def paragwgh_telikou_kwdika(x1, x2):
 
     parameters = 0
 
+
     for k in range(x1,x2+1):
     #for quad in quadList:
         quad = quadList[k]
+        print(quad)
 
         if quad[1] == "jump":
             asm_file.write("L_%s: b L_%s\n" %((quad[0]+1),(quad[4]+1)) )
@@ -2115,21 +2135,22 @@ def paragwgh_telikou_kwdika(x1, x2):
 
         elif quad[1] == "par":
             asm_file.write('L_%s: \n' %(quad[0]+1) )
-            parameters = +1
 
             temp_fr = 0
-            if parameters == 1 :
-                function_name = ""
-                for i in range(quad[0] + 1,len(quadList)):
-                    if quadList[i][1] == "call":
-                        function_name = quadList[i][2]
-                        break
-                fr =  main_obj.Search_Entity_backwards(function_name).framelength
-                temp_fr = fr
+            ofs = (12 + (4*parameters))
+            function_name = ""
+            for i in range(quad[0] + 1,len(quadList)):
+                if quadList[i][1] == "call":
+                    function_name = quadList[i][2]
+                    break
+            fr =  main_obj.Search_Entity_backwards(function_name).framelength
+            temp_fr = fr
+
+            if parameters == 0:
                 asm_file.write("\taddi $fp, $sp, %s\n" %fr)
 
             if quad[3] == "CV":
-                ofs = (12 + (4*parameters))
+                loadvr(quad[2],"t0")
                 asm_file.write("\tsw $t0, -%s($fp)\n" %ofs)
                 
             elif quad[3] == "REF":
@@ -2142,7 +2163,10 @@ def paragwgh_telikou_kwdika(x1, x2):
                 of = main_obj.Search_offset(quad[2],scope)
                 entity = main_obj.Get_Entity(scope,of)      #       !!!!!!!!!!!!!!!    #
 
-                ofs = (12 + (4*parameters))
+                g = quadList[x1]
+                print(quadList[x1][2])
+            
+                print(str(functions_Scope) +" "+ str(scope))
 
                 if functions_Scope == scope:       # scope synarthshs = scope metavlhths
 
@@ -2172,12 +2196,15 @@ def paragwgh_telikou_kwdika(x1, x2):
                 asm_file.write("\taddi $t0, $sp, -%s\n" %of)
                 asm_file.write("\tsw $t0,-8($fp)\n")
 
-            asm_file.write("\taddi $fp, $sp, -%s\n" %temp_fr)
+            #asm_file.write("\taddi $fp, $sp, -%s\n" %temp_fr)           #+++++++
+            #asm_file.write("sw $%s, -")
+
+            parameters = +1
 
         elif quad[1] == "call":
             asm_file.write('L_%s: \n' %(quad[0]+1) )
             print("----------- "+str(x1))
-            t = quadList[x1+1]
+            t = quadList[x1]
             kalousa = t[2]
             klhtheisa = quad[2]
 
@@ -2185,6 +2212,7 @@ def paragwgh_telikou_kwdika(x1, x2):
             if kalousa_scope == -1:
                     sys.exit("3.Something unexpected happened. Program exits...")
             klhtheisa_scope = main_obj.Search_scope(klhtheisa)
+            klhtheisa_scope += 1   # +1 giati th vriskei sto scope ths kalousa. Ara afth einai +1 panw.
             if klhtheisa_scope == -1:
                     sys.exit("4.Something unexpected happened. Program exits...")
 
@@ -2199,7 +2227,7 @@ def paragwgh_telikou_kwdika(x1, x2):
             fr =  ent.framelength
             begin_quad = ent.start_quad
             asm_file.write("\taddi $sp, $sp, %s\n" %fr)
-            asm_file.write("\tjal L_%s\n" %(begin_quad +1))
+            asm_file.write("\tjal L_%s\n" %(begin_quad))
             asm_file.write("\taddi $sp, $sp, -%s\n" %fr)
                 
         elif quad[1] == "begin_block":
@@ -2211,13 +2239,17 @@ def paragwgh_telikou_kwdika(x1, x2):
             else:
                 asm_file.write('L_%s: \n' %(quad[0]+1) )
                 #asm_file.write('L_%s: \n' %(quad[2]) )
-                asm_file.write("\tsw $ra, ($sp)\n")
+                asm_file.write("\tsw $ra, -0($sp)\n")
         
         elif quad[1] == "end_block":
             asm_file.write('L_%s: \n' %(quad[0]+1) )
-            asm_file.write("\tlw $ra, ($sp)\n")
-            asm_file.write("\tjr $ra\n")
-            #asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
+            if quad[2]+"_" != program_name:
+                asm_file.write("\tlw $ra, -0($sp)\n")
+                asm_file.write("\tjr $ra\n")
+                #asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
+
+        else:
+            asm_file.write("L_%s: \n" %(quad[0]+1) )
         
 
 
@@ -2225,9 +2257,13 @@ def gnvlcode(entity):
     global asm_file, main_obj
 
     temp_scope = main_obj.scope
+
+    print("temp scope : " + str(temp_scope))
+
     asm_file.write("\tlw $t0, -4($sp)\n")
     
-    while ((main_obj.Search(entity.getName,None,temp_scope) == -1) and (temp_scope >= 0)):
+    while ((main_obj.Search(entity.getName(),None,temp_scope) == -1) and (temp_scope >= 0)):
+        print(main_obj.Search(entity.getName(),None,temp_scope))
         asm_file.write("\tlw $t0, -4($t0)\n")
         temp_scope -= 1
     asm_file.write("\taddi $t0, $t0, -%s\n" %entity.offset)
@@ -2250,24 +2286,29 @@ def loadvr(v,r):
 
     if (scope == 0 and isinstance(entity,Variable)):    
         asm_file.write("\tlw $%s, -%s($s0)\n" %(r,of))
+        print("here1")
     
     elif ( (main_obj.scope == scope and isinstance(entity,Variable)) or 
         (main_obj.scope == scope and isinstance(entity,Parameter) and (entity.parMode == 'CV') ) or
         (main_obj.scope == scope and isinstance(entity,Temp_Variable) )):
         asm_file.write("\tlw $%s, -%s($sp)\n" %(r,of))
+        print("here2")
 
     elif (main_obj.scope == scope and isinstance(entity,Parameter) and (entity.parMode == 'REF')):
         asm_file.write("\tlw $t0, -%s($sp)\n" %of)
         asm_file.write("\tlw $%s, ($t0)\n" %r)
+        print("here3")
         
     elif ( main_obj.scope != scope and scope != 0 ):
         if ( (isinstance(entity,Variable)) or (isinstance(entity,Parameter) and (entity.parMode == 'CV'))) :
             gnvlcode(entity)
             asm_file.write("\tlw $%s, ($t0)\n" %r)
+            print("here4")
         elif isinstance(entity,Parameter) and (entity.parMode == 'REF'):
             gnvlcode(entity)
             asm_file.write("\tlw $t0, ($t0)\n")
             asm_file.write("\tlw $%s, ($t0)\n" %r)
+            print("here5")
 
 def storerv(r,v):       # r = kataxwrhths, v = sth mnhmh
     global asm_file, main_obj
@@ -2298,6 +2339,7 @@ def storerv(r,v):       # r = kataxwrhths, v = sth mnhmh
             gnvlcode(entity)
             asm_file.write("\tlw $t0, ($t0)\n")
             asm_file.write("\tsw $%s, ($t0)\n" %r)
+            print("++++")
 #======================================================================
 #                 End of Telikos Kwdikas
 #======================================================================
