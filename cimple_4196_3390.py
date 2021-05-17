@@ -44,7 +44,7 @@ states = [[dig,   idk,    addOperator, mulOperator, groupSymbol, delimiter, asgn
 #------------Variables-----------
 file_counters = [0, 1, 1, False, 1]  # code_file_counter, row, col, 
 word, token, variables, temp, elseflag, whileflag, var_counter,program_name,function_names,var,counter_blocks = "","", list(), "", 0, 0, 0, "",[],"",0
-return_counter = -1
+return_counter, procedure_names = -1, []
 main_framelenght, main_start_quad = -1, -1
 strict_words = ["program","declare","if","else","while","switchcase","incase","case","default","not","and","or",
                 "procedure","call","return","in","inout","input","print","function"]
@@ -403,7 +403,7 @@ def subprograms(file_counters):
 
 #============ SUBPROGRAM ================= 
 def subprogram(file_counters):
-    global word, token,temp,quadList,function_names ,objects_list,main_obj, return_counter
+    global word, token,temp,quadList,function_names ,objects_list,main_obj, return_counter,procedure_names
     id = ""
     return_counter = 0
     if(token == "functiontk"):
@@ -466,6 +466,7 @@ def subprogram(file_counters):
         if(token == "keywordtk"):
             id = word
             function_names.append(id)
+            procedure_names.append(id)
 
             i = main_obj.Search(word,None)
             if i!=-1:
@@ -733,7 +734,7 @@ def statement(file_counters):
 
 #============ ASGNSTAT ===================
 def asgnStat(file_counters):
-    global word, token,quadList,quads
+    global word, token,quadList,quads,procedure_names
 
     if(token == "keywordtk"):
         z = word
@@ -745,14 +746,19 @@ def asgnStat(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
+            if(word in procedure_names):
+                file.close()
+                sys.exit("Syntax Error. Can not assign procedure to variable. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
+
             i = main_obj.Search(z,"asign")
             if "forp" in i:
                 file.close()
-                sys.exit("Keyword '"+z+"' is already used as function/procedure name. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                sys.exit("Syntax Error. Keyword '"+z+"' is already used as function/procedure name. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                 ",column: " +(str(file_counters[4] - len(word))))
             if i == -1:
                 file.close()
-                sys.exit("Keyword '"+z+"' unidentified. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                sys.exit("Syntax Error. Keyword '"+z+"' unidentified. Error at line: "+str(int((file_counters[1] + 1) / 2))+
                 ",column: " +(str(file_counters[4] - len(word))))
 
             exp = expression(file_counters)
@@ -760,23 +766,27 @@ def asgnStat(file_counters):
             nextquad()
             quadList.append(genquad(quads,":=",exp,"",z))
 
-        else:
+        elif (z not in procedure_names):
             file.close()
             if(z in function_names):
                 sys.exit("Syntax Error. Keyword ':=' excpected before function call. Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                ",column: " +(str(file_counters[4] - len(word))))
+                ",column: " +(str(file_counters[4] - len(z))))
             elif(word in strict_words):
                 sys.exit("Syntax Error. Keyword ':=' excpected here. 'Strict words' like '"+word+"' are not acceptable here.Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                ",column: " +(str(file_counters[4] - len(word))))
+                ",column: " +(str(file_counters[4] - len(z))))
             elif(token == "numbertk"):
                 sys.exitt("Syntax Error. Keyword ':=' excpected here. Numbers are not acceptable here.Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                ",column: " +(str(file_counters[4] - len(word))))
+                ",column: " +(str(file_counters[4] - len(z))))
             elif(token == "keywordtk"):
                 sys.exit("Syntax Error. ':=' excpected here. Keyword '"+word+"' is not acceptable here.Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                ",column: " +(str(file_counters[4] - len(word))))
+                ",column: " +(str(file_counters[4] - len(z))))
             else:
                 sys.exit("Syntax Error. Keyword ':=' excpected here. Symbols like '"+word+"' are not acceptable here.Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                ",column: " +(str(file_counters[4] - len(word))))
+                ",column: " +(str(file_counters[4] - len(z))))
+        else:
+            file.close()
+            sys.exit("Syntax Error. Keyword 'call' excpected before procedure call. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(z))))
     else:
         file.close()
         if(word in strict_words):
@@ -1055,8 +1065,8 @@ def callStat(file_counters):
         id = word
 
 
-        i = main_obj.Search(word,"function",main_obj.scope)
-        if i==-1:
+        arguments = main_obj.Search(word,"function",main_obj.scope)
+        if arguments==-1:
             file.close()
             sys.exit("Keyword '"+id+"' is not a Procedure. Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
@@ -1078,6 +1088,34 @@ def callStat(file_counters):
                 
                 word, token = lexer(file_counters)
                 print(word+" "+token)
+
+                tmp_ar = []
+
+                for q in parameters[1:]:
+
+                    if q[2] == "CV" or q[2] == "REF":
+                        tmp_ar.append(q[2])
+
+                    nextquad()
+                    quadList.append(genquad(quads,q[0],q[1],q[2],""))
+
+                if(len(arguments) == len(tmp_ar)):
+	                t = 0
+	                for q in tmp_ar:
+	                    if isinstance(arguments,(list,[])):
+	                        
+	                        if (arguments[t] == "in " and tmp_ar[t] != "CV") or (arguments[t] == "inout " and tmp_ar[t] != "REF"):
+	                            file.close()
+	                            sys.exit("Syntax Error. Missmatch arguments of procedure '"+id+"'. Error at line: "+str(int((file_counters[1] + 1) / 2)))
+	                    t += 1
+                elif(len(arguments) > len(tmp_ar)):
+                    file.close()
+                    sys.exit("Syntax Error. Arguments missing for procedure " + id + ". Excpected "+ (len(arguments)) + " given " + (len(tmp_ar)) +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
+		            ",column: " +(str(file_counters[4] - len(word))))
+                else:
+                    file.close()
+                    sys.exit("Syntax Error. Too many arguments for procedure " + id + ". Excpected "+ (len(arguments)) + " given " + (len(tmp_ar)) +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
+		            ",column: " +(str(file_counters[4] - len(word))))
 
             else:
                 file.close()
@@ -1206,6 +1244,19 @@ def actualparlist(file_counters,function_name,parameters):
     if parameters != []:
         caller = False
 
+    if(word == ")"):                                        ######changed###################
+        if caller == True:      #if it is a function. 
+            w = newtemp()
+
+            main_obj.change_offset()
+            temp_var_obj = Temp_Variable(w,main_obj.offsets[main_obj.scope])
+            main_obj.append(temp_var_obj) 
+            parameters.append(["par",w,"RET"])
+
+            ret = w
+        #if it is a procedure
+        parameters.append(["call",function_name,""])
+
     if((token == "intk") or (token == "inouttk")):
         insout += 1
         word, token = lexer(file_counters)
@@ -1232,17 +1283,18 @@ def actualparlist(file_counters,function_name,parameters):
                 ",column: " +(str(file_counters[4] - len(word))) +" in order to add more parameters") 
 
         if(function_name in function_names):
-            w = newtemp()
-
-            if caller == True:
+            
+            if caller == True:      #if it is a function. 
+                w = newtemp()
+                
                 main_obj.change_offset()
                 temp_var_obj = Temp_Variable(w,main_obj.offsets[main_obj.scope])
                 main_obj.append(temp_var_obj) 
+                parameters.append(["par",w,"RET"])
 
-            parameters.append(["par",w,"RET"])
+                ret = w
+            #if it is a procedure
             parameters.append(["call",function_name,""])
-
-            ret = w
         
     return ret
 #============ ACTUALPARLIST ===================
@@ -1550,7 +1602,7 @@ def factor(file_counters):
 
         # elegxei kai th ( wste na mh pianei kai tis aples metavlhtes
         if(word == "("):
-            print("++++++"+str(main_obj.scope))
+            #print("++++++"+str(main_obj.scope))
             i = main_obj.Search(ret,"function",main_obj.scope)
             if i==-1:
                 file.close()
@@ -1601,6 +1653,8 @@ def idtail(file_counters,function_name,arguments):
 
         ret = actualparlist(file_counters,function_name,parameters)
 
+        #to parakatw if einai mono gia function.
+
         if(word == ')'):
             word, token = lexer(file_counters)
             print(word+" "+token)
@@ -1615,14 +1669,23 @@ def idtail(file_counters,function_name,arguments):
 
                 nextquad()
                 quadList.append(genquad(quads,q[0],q[1],q[2],""))
-            t = 0
-            for q in tmp_ar:
-                if isinstance(arguments,(list,[])):
-                    
-                    if (arguments[t] == "in " and tmp_ar[t] != "CV") or (arguments[t] == "inout " and tmp_ar[t] != "REF"):
-                        file.close()
-                        sys.exit("Syntax Error. Missmatch arguments of funtion/procedure '"+function_name+"'. Error at line: "+str(int((file_counters[1] + 1) / 2)))
-                t += 1
+
+            if(len(arguments) == len(tmp_ar)):
+                t = 0
+                for q in tmp_ar:
+                    if isinstance(arguments,(list,[])):  
+                        if (arguments[t] == "in " and tmp_ar[t] != "CV") or (arguments[t] == "inout " and tmp_ar[t] != "REF"):
+                            file.close()
+                            sys.exit("Syntax Error. Missmatch arguments of funtion '"+function_name+"'. Error at line: "+str(int((file_counters[1] + 1) / 2)))
+                    t += 1
+            elif(len(arguments) > len(tmp_ar)):
+                file.close()
+                sys.exit("Syntax Error. Arguments missing for function " + function_name + ". Excpected "+ str((len(arguments))) + " given " + str((len(tmp_ar))) +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
+            else:
+                file.close()
+                sys.exit("Syntax Error. Too many arguments for function " + function_name + ". Excpected "+ str((len(arguments))) + " given " + str((len(tmp_ar))) +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
+                ",column: " +(str(file_counters[4] - len(word))))
         else:
             file.close()
             sys.exit("Syntax Error. Keyword ')' expected here. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -2052,7 +2115,7 @@ def intialize_asm_file(program_name):
     asm_file.write('L0: b L_%s\n' %program_name)
 
 def paragwgh_telikou_kwdika(x1, x2):
-    global quadList,asm_file
+    global quadList,asm_file,main_start_quad
 
     parameters = 0
 
@@ -2131,6 +2194,9 @@ def paragwgh_telikou_kwdika(x1, x2):
             loadvr(quad[2],"t1")
             asm_file.write("\tlw $t0, -8($sp)\n")
             asm_file.write("\tsw $t1, ($t0)\n")
+            asm_file.write("\tlw $ra, -0($sp)\n")
+            asm_file.write("\tjr $ra\n")
+            
             parameters = 0
 
         elif quad[1] == "par":
@@ -2203,6 +2269,11 @@ def paragwgh_telikou_kwdika(x1, x2):
 
         elif quad[1] == "call":
             asm_file.write('L_%s: \n' %(quad[0]+1) )
+
+            if parameters == 0:
+                fr =  main_obj.Search_Entity_backwards(quad[2]).framelength
+                asm_file.write("\taddi $fp, $sp, %s\n" %fr)
+
             print("----------- "+str(x1))
             t = quadList[x1]
             kalousa = t[2]
@@ -2229,9 +2300,11 @@ def paragwgh_telikou_kwdika(x1, x2):
             asm_file.write("\taddi $sp, $sp, %s\n" %fr)
             asm_file.write("\tjal L_%s\n" %(begin_quad))
             asm_file.write("\taddi $sp, $sp, -%s\n" %fr)
+
+            parameters = 0
                 
         elif quad[1] == "begin_block":
-            if quad[2]+"_" == program_name:
+            if ((quad[2]+"_" == program_name) and (quad[0]+1 == main_start_quad)):
                 asm_file.write('L_%s: \n' %quad[2] )
                 asm_file.write('L_%s: \n' %(quad[0]+1) )
                 asm_file.write("\taddi $sp, $sp, %s\n" %main_framelenght)
@@ -2240,13 +2313,15 @@ def paragwgh_telikou_kwdika(x1, x2):
                 asm_file.write('L_%s: \n' %(quad[0]+1) )
                 #asm_file.write('L_%s: \n' %(quad[2]) )
                 asm_file.write("\tsw $ra, -0($sp)\n")
+            parameters = 0
         
         elif quad[1] == "end_block":
             asm_file.write('L_%s: \n' %(quad[0]+1) )
-            if quad[2]+"_" != program_name:
+            if ((quad[2]+"_" != program_name) or (quad[0]+1 != main_start_quad)):
                 asm_file.write("\tlw $ra, -0($sp)\n")
                 asm_file.write("\tjr $ra\n")
                 #asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
+            parameters = 0
 
         else:
             asm_file.write("L_%s: \n" %(quad[0]+1) )
@@ -2256,7 +2331,7 @@ def paragwgh_telikou_kwdika(x1, x2):
 def gnvlcode(entity):
     global asm_file, main_obj
 
-    temp_scope = main_obj.scope
+    temp_scope = main_obj.scope - 1
 
     print("temp scope : " + str(temp_scope))
 
