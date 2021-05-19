@@ -1,0 +1,2 @@
+fibonacci : 1 [x CV 12]  [T_0 16]  [T_1 20]  [T_2 24]  [T_3 28]  [T_4 32] 
+fibonacci : 0 [x 12]  [fibonacci 1 {in } 36]  [T_5 16] 

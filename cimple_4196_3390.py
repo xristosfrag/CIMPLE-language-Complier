@@ -1,3 +1,5 @@
+
+  
 # Fragkathoulas Christos
 # 4196
 # cs04196
@@ -266,7 +268,7 @@ def program(file_counters):
 
 #============ BLOCK ================
 def block(file_counters,name):
-    global word,token,temp,quadList,program_name, quads, counter_blocks , objects_list,main_obj,main_start_quad,main_framelenght
+    global word,token,temp,quadList,program_name, quads, counter_blocks , objects_list,main_obj,main_start_quad,main_framelenght,pinakas_symvolwn_txt
 
     counter_blocks += 1
 
@@ -302,9 +304,11 @@ def block(file_counters,name):
 
     paragwgh_telikou_kwdika(x1,x2)
 
-
-    #print(str(main_obj.pinakas_symvolwn[0][1].name) +""+str(type(main_obj.pinakas_symvolwn[0][1])))
+    print()
+    print("Pinakas Symvolwn: ")
     main_obj.print()
+    print()
+    pinakas_symvolwn_txt.write(quadList[x2][2] + " : " + main_obj.print_to_txt())
     main_obj.remove_scope()
     del objects_list[-1]
 #============ BLOCK ================
@@ -623,14 +627,14 @@ def statements(file_counters):
 
             if(token == "declaretk"):
                 file.close()
-                sys.exit("Syntax Error. Wrong program structure! The valid structure for the program is 1.declarations (if any)\n\
+                sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
 2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
 
         else:
             file.close()
             if(token == "declaretk"):
-                sys.exit("Syntax Error. Wrong program structure! The valid structure for the program is 1.declarations (if any)\n\
+                sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
 2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
             else:
@@ -648,24 +652,30 @@ def statements(file_counters):
         
         word, token = lexer(file_counters)
         print(word+" "+token)
+
+        if (counter_blocks == 1) and (token != "stoptk"):
+            file.close()
+            sys.exit("Syntax Error. Keyword '.' was expected here in order to terminate program or\n\
+place these keywords '{','}' before first statement and after the last one. Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
+            
         '''if(((word == ';') and (elseflag > 0))):
             pass
         else:
             word, token = lexer(file_counters)
             print(word+" "+token)
-
         elseflag -= 1
         if(elseflag < 0):
             elseflag = 0'''
 
         if((temp != "subprograms") and (counter_blocks ==0) and ((token == "functiontk") or (token == "proceduretk"))):
             file.close()
-            sys.exit("Syntax Error. Wrong program structure! The valid structure for the program is 1.declarations (if any)\n\
+            sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
 2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
-        elif(token == "declaretk"):
+        elif(token == "declaretk"):#####
             file.close()
-            sys.exit("Syntax Error. Wrong program structure! The valid structure for the program is 1.declarations (if any)\n\
+            sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
 2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
             ",column: " +(str(file_counters[4] - len(word))))
 #============ STATEMENTS ==================  
@@ -752,6 +762,7 @@ def asgnStat(file_counters):
                 ",column: " +(str(file_counters[4] - len(word))))
 
             i = main_obj.Search(z,"asign")
+            print(i)
             if "forp" in i:
                 file.close()
                 sys.exit("Syntax Error. Keyword '"+z+"' is already used as function/procedure name. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -819,6 +830,12 @@ def ifStat(file_counters):
             word, token = lexer(file_counters)
             print(word+" "+token)
 
+            if(token == "declaretk" or token == "functiontk" or token == "proceduretk"):
+                file.close()
+                sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
+2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
+
             backpatch(Btrue,quads + 1)
             statements(file_counters)
             ifList = makelist(nextquad())
@@ -845,7 +862,13 @@ def elsepart(file_counters):
     if(token == "elsetk"):
         word, token = lexer(file_counters)
         print(word+" "+token)
-        #elseflag += 1
+
+        if(token == "declaretk" or token == "functiontk" or token == "proceduretk"):
+                file.close()
+                sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
+2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
+        
         statements(file_counters)# 8a epistrefei epomeno
 #============ ELSEPART ===================
 
@@ -915,6 +938,13 @@ def switchcaseStat(file_counters):
                 word, token = lexer(file_counters)
                 print(word+" "+token)
 
+                if(token == "declaretk" or token == "functiontk" or token == "proceduretk"):
+                    file.close()
+                    sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
+2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
+            
+
                 backpatch(CondTrue,quads + 1)
                 statements(file_counters)
 
@@ -968,6 +998,12 @@ def forcaseStat(file_counters):
             if(word == ')'):
                 word, token = lexer(file_counters)
                 print(word+" "+token)
+
+                if(token == "declaretk" or token == "functiontk" or token == "proceduretk"):
+                    file.close()
+                    sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
+2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
 
                 CondTrue = C[0]
                 CondFalse = C[1]
@@ -1033,6 +1069,12 @@ def incaseStat(file_counters):
             if(word == ')'):                
                 word, token = lexer(file_counters)
                 print(word+" "+token)
+
+                if(token == "declaretk" or token == "functiontk" or token == "proceduretk"):
+                    file.close()
+                    sys.exit("Syntax Error. Wrong program structure! The valid structure for each block is 1.declarations (if any)\n\
+2. functions (if any) and 3. statements (if any). Error at line: "+str(int((file_counters[1] + 1) / 2))+
+            ",column: " +(str(file_counters[4] - len(word))))
 
                 CondTrue = C[0]
                 CondFalse = C[1]
@@ -1110,12 +1152,10 @@ def callStat(file_counters):
 	                    t += 1
                 elif(len(arguments) > len(tmp_ar)):
                     file.close()
-                    sys.exit("Syntax Error. Arguments missing for procedure " + id + ". Excpected "+ (len(arguments)) + " given " + (len(tmp_ar)) +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
-		            ",column: " +(str(file_counters[4] - len(word))))
+                    sys.exit("Syntax Error. Arguments missing for procedure " + id + ". Excpected "+ (len(arguments)) + " given " + (len(tmp_ar)) +". Error at line: "+str(int((file_counters[1] + 1) / 2)))
                 else:
                     file.close()
-                    sys.exit("Syntax Error. Too many arguments for procedure " + id + ". Excpected "+ (len(arguments)) + " given " + (len(tmp_ar)) +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
-		            ",column: " +(str(file_counters[4] - len(word))))
+                    sys.exit("Syntax Error. Too many arguments for procedure " + id + ". Excpected "+ (len(arguments)) + " given " + (len(tmp_ar)) +". Error at line: "+str(int((file_counters[1] + 1) / 2)))
 
             else:
                 file.close()
@@ -1602,7 +1642,6 @@ def factor(file_counters):
 
         # elegxei kai th ( wste na mh pianei kai tis aples metavlhtes
         if(word == "("):
-            #print("++++++"+str(main_obj.scope))
             i = main_obj.Search(ret,"function",main_obj.scope)
             if i==-1:
                 file.close()
@@ -1680,12 +1719,10 @@ def idtail(file_counters,function_name,arguments):
                     t += 1
             elif(len(arguments) > len(tmp_ar)):
                 file.close()
-                sys.exit("Syntax Error. Arguments missing for function " + function_name + ". Excpected "+ str((len(arguments))) + " given " + str((len(tmp_ar))) +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                ",column: " +(str(file_counters[4] - len(word))))
+                sys.exit("Syntax Error. Arguments missing for function " + function_name + ". Excpected "+ str((len(arguments))) + " given " + str((len(tmp_ar))) +". Error at line: "+str(int((file_counters[1] + 1) / 2)))
             else:
                 file.close()
-                sys.exit("Syntax Error. Too many arguments for function " + function_name + ". Excpected "+ str((len(arguments))) + " given " + str((len(tmp_ar))) +". Error at line: "+str(int((file_counters[1] + 1) / 2))+
-                ",column: " +(str(file_counters[4] - len(word))))
+                sys.exit("Syntax Error. Too many arguments for function " + function_name + ". Excpected "+ str((len(arguments))) + " given " + str((len(tmp_ar))) +". Error at line: "+str(int((file_counters[1] + 1) / 2)))
         else:
             file.close()
             sys.exit("Syntax Error. Keyword ')' expected here. Error at line: "+str(int((file_counters[1] + 1) / 2))+
@@ -1886,7 +1923,6 @@ class ps:
 
     def append(self,record):
         self.pinakas_symvolwn[self.scope].append(record)
-        #print("444"+str(type(record)))
     
     def change_offset(self):
         self.offsets[self.scope] += 4
@@ -1908,18 +1944,24 @@ class ps:
                 k += " ["+ row[j].get()+"] "
             print(k)    
 
+    def print_to_txt(self):
+        row = self.pinakas_symvolwn[-1]
+        k = row[0]
+        for j in range(1,len(row)):
+            k += " ["+ row[j].get()+"] "
+        return k+"\n"
+
     def Search(self,name,S_type,scope=-1):
 
         if S_type == "asign":
             for row in self.pinakas_symvolwn:
                 for j in range(1,len(row)):
-                    print(row[j].getName()+ " "+ name)
+                    #print(row[j].getName()+ " "+ name)
                     if name == row[j].getName():
                         if isinstance(row[j],Function):
-                            #return -1
+                    
                             return row[j].getName()+"forp"      # yparxei ws synarthsh
                         return row[j].getName()                 # yparxei to onoma
-            #print("Entity '"+name+"' not found")
             return -1                                           # den yparxei
 
         if S_type == "parameter":
@@ -1930,22 +1972,16 @@ class ps:
         if S_type == "function":
             row = self.pinakas_symvolwn[scope]
             for i in range(1,len(row)):
-                #print(" --- "+row[i].getName())
                 if name == row[i].getName():
-                    #print(" --- "+type(Function))
-                    #if type(row[i]) is type(Function):
                     if isinstance(row[i],Function):
-                        print(row[i].list_argument)
+                        #print(row[i].list_argument)
                         return row[i].list_argument
 
             row = self.pinakas_symvolwn[scope-1]
             for i in range(1,len(row)):
-                #print(" --- "+row[i].getName())
                 if name == row[i].getName():
-                    #print(" --- "+type(Function))
-                    #if type(row[i]) is type(Function):
                     if isinstance(row[i],Function):
-                        print(row[i].list_argument)
+                        #print(row[i].list_argument)
                         return row[i].list_argument
             return -1
         
@@ -1953,20 +1989,13 @@ class ps:
             row = self.pinakas_symvolwn[scope]
             for i in range(1,len(row)):
                 if name == row[i].getName():
-                    #if isinstance(row[i],Function):
-                        #return -1
                     return row[i].getName()
-            #print("Entity '"+name+"' not found")
             return -1
         else:   
             for row in self.pinakas_symvolwn:
                 for j in range(1,len(row)):
-                    #print(row[j].getName()+ " "+ name)
                     if name == row[j].getName():
-                        #if isinstance(row[j],Function):
-                            #return -1
                         return row[j].getName()
-            #print("Entity '"+name+"' not found")
             return -1
 
     def Search_scope(self,name):
@@ -1976,11 +2005,9 @@ class ps:
             return 0
 
         for i in range(len(self.pinakas_symvolwn)-1,-1,-1):        # i = scope
-            #main_obj.print()
             row = self.pinakas_symvolwn[i]
-            for j in range(1,len(row)):
-            #for j in range(0,len(self.pinakas_symvolwn[i])-1):    # j = stoixeia tou scope
-                print(row[j].getName())
+            for j in range(1,len(row)):    # j = stoixeia tou scope
+                #print(row[j].getName())
                 if row[j].getName() == name:
                     return i
         else:
@@ -1994,14 +2021,12 @@ class ps:
 
     def Get_Entity(self,i,j):
         j = int((j-12)/4)
-        #print("++++++++++++" + str(type(self.pinakas_symvolwn[i][j])))
         return self.pinakas_symvolwn[i][j]
 
     def Search_Entity_backwards(self,name):
         for i in range(len(self.pinakas_symvolwn)-1,-1,-1): 
             row = self.pinakas_symvolwn[i]
             for j in range(1,len(row)):
-            #for j in range(1,len(self.pinakas_symvolwn[i])):
                 if row[j].getName() == name:
                     return row[j]
         else:
@@ -2121,9 +2146,7 @@ def paragwgh_telikou_kwdika(x1, x2):
 
 
     for k in range(x1,x2+1):
-    #for quad in quadList:
         quad = quadList[k]
-        print(quad)
 
         if quad[1] == "jump":
             asm_file.write("L_%s: b L_%s\n" %((quad[0]+1),(quad[4]+1)) )
@@ -2225,14 +2248,9 @@ def paragwgh_telikou_kwdika(x1, x2):
 
                 scope = main_obj.Search_scope(quad[2])
                 if scope == -1:
-                    sys.exit("1.Something unexpected happened. Program exits...")
+                    sys.exit("In ref parameter, something unexpected happened. Program exits...")
                 of = main_obj.Search_offset(quad[2],scope)
                 entity = main_obj.Get_Entity(scope,of)      #       !!!!!!!!!!!!!!!    #
-
-                g = quadList[x1]
-                print(quadList[x1][2])
-            
-                print(str(functions_Scope) +" "+ str(scope))
 
                 if functions_Scope == scope:       # scope synarthshs = scope metavlhths
 
@@ -2256,14 +2274,13 @@ def paragwgh_telikou_kwdika(x1, x2):
             elif quad[3] == "RET":
                 scope = main_obj.Search_scope(quad[2])
                 if scope == -1:
-                    sys.exit("2.Something unexpected happened. Program exits...")
+                    sys.exit("In ret parameter, something unexpected happened. Program exits...")
                 of = main_obj.Search_offset(quad[2],scope)
 
                 asm_file.write("\taddi $t0, $sp, -%s\n" %of)
                 asm_file.write("\tsw $t0,-8($fp)\n")
 
-            #asm_file.write("\taddi $fp, $sp, -%s\n" %temp_fr)           #+++++++
-            #asm_file.write("sw $%s, -")
+ 
 
             parameters = +1
 
@@ -2274,18 +2291,17 @@ def paragwgh_telikou_kwdika(x1, x2):
                 fr =  main_obj.Search_Entity_backwards(quad[2]).framelength
                 asm_file.write("\taddi $fp, $sp, %s\n" %fr)
 
-            print("----------- "+str(x1))
             t = quadList[x1]
             kalousa = t[2]
             klhtheisa = quad[2]
 
             kalousa_scope = main_obj.Search_scope(kalousa)
             if kalousa_scope == -1:
-                    sys.exit("3.Something unexpected happened. Program exits...")
+                    sys.exit("In call quad, something unexpected happened. Program exits...")
             klhtheisa_scope = main_obj.Search_scope(klhtheisa)
             klhtheisa_scope += 1   # +1 giati th vriskei sto scope ths kalousa. Ara afth einai +1 panw.
             if klhtheisa_scope == -1:
-                    sys.exit("4.Something unexpected happened. Program exits...")
+                    sys.exit("In call quad, something unexpected happened. Program exits...")
 
             if kalousa_scope == klhtheisa_scope:
                 asm_file.write("\tlw $t0, -4($sp)\n")
@@ -2311,16 +2327,15 @@ def paragwgh_telikou_kwdika(x1, x2):
                 asm_file.write("\tmove $s0,$sp\n")
             else:
                 asm_file.write('L_%s: \n' %(quad[0]+1) )
-                #asm_file.write('L_%s: \n' %(quad[2]) )
                 asm_file.write("\tsw $ra, -0($sp)\n")
             parameters = 0
         
         elif quad[1] == "end_block":
             asm_file.write('L_%s: \n' %(quad[0]+1) )
-            if ((quad[2]+"_" != program_name) or (quad[0]+1 != main_start_quad)):
+            if ((quad[2]+"_" != program_name) or (quadList[x1][0]+1 != main_start_quad)):
                 asm_file.write("\tlw $ra, -0($sp)\n")
                 asm_file.write("\tjr $ra\n")
-                #asm_file.write('L_%s: sw $ra, -0($sp)\n', (quad[0]+1) )
+
             parameters = 0
 
         else:
@@ -2332,8 +2347,6 @@ def gnvlcode(entity):
     global asm_file, main_obj
 
     temp_scope = main_obj.scope - 1
-
-    print("temp scope : " + str(temp_scope))
 
     asm_file.write("\tlw $t0, -4($sp)\n")
     
@@ -2354,48 +2367,40 @@ def loadvr(v,r):
         v = v.replace('-',"")
     scope = main_obj.Search_scope(v)
     if scope == -1:
-        sys.exit("5.Something unexpected happened. Program exits...")
+        sys.exit("In loadvr quad, something unexpected happened. Program exits...")
     of = main_obj.Search_offset(v,scope)
-    #entity = main_obj.Get_Entity(scope,of)
     entity = main_obj.Search_Entity_backwards(v)
 
     if (scope == 0 and isinstance(entity,Variable)):    
         asm_file.write("\tlw $%s, -%s($s0)\n" %(r,of))
-        print("here1")
     
     elif ( (main_obj.scope == scope and isinstance(entity,Variable)) or 
         (main_obj.scope == scope and isinstance(entity,Parameter) and (entity.parMode == 'CV') ) or
         (main_obj.scope == scope and isinstance(entity,Temp_Variable) )):
         asm_file.write("\tlw $%s, -%s($sp)\n" %(r,of))
-        print("here2")
 
     elif (main_obj.scope == scope and isinstance(entity,Parameter) and (entity.parMode == 'REF')):
         asm_file.write("\tlw $t0, -%s($sp)\n" %of)
         asm_file.write("\tlw $%s, ($t0)\n" %r)
-        print("here3")
         
     elif ( main_obj.scope != scope and scope != 0 ):
         if ( (isinstance(entity,Variable)) or (isinstance(entity,Parameter) and (entity.parMode == 'CV'))) :
             gnvlcode(entity)
             asm_file.write("\tlw $%s, ($t0)\n" %r)
-            print("here4")
+            
         elif isinstance(entity,Parameter) and (entity.parMode == 'REF'):
             gnvlcode(entity)
             asm_file.write("\tlw $t0, ($t0)\n")
             asm_file.write("\tlw $%s, ($t0)\n" %r)
-            print("here5")
 
 def storerv(r,v):       # r = kataxwrhths, v = sth mnhmh
     global asm_file, main_obj
 
     scope = main_obj.Search_scope(v)
-    #print("---------"+str(scope))
     if scope == -1:
         sys.exit("6.Something unexpected happened. Program exits...")
     of = main_obj.Search_offset(v,scope)
     entity = main_obj.Search_Entity_backwards(v)
-    #print("---------"+str(type(entity)))
-    print(isinstance(entity, str))
 
     if (scope == 0 and isinstance(entity, Variable)):    
         asm_file.write("\tsw $%s, -%s($s0)\n" %(r,of))
@@ -2414,7 +2419,6 @@ def storerv(r,v):       # r = kataxwrhths, v = sth mnhmh
             gnvlcode(entity)
             asm_file.write("\tlw $t0, ($t0)\n")
             asm_file.write("\tsw $%s, ($t0)\n" %r)
-            print("++++")
 #======================================================================
 #                 End of Telikos Kwdikas
 #======================================================================
@@ -2440,6 +2444,8 @@ print(word+" "+token)
 main_obj = ps()
 objects_list = list()
 objects_list.append(main_obj)
+y = tmp_name.replace(".ci",".txt")
+pinakas_symvolwn_txt = open(y,"w")
 
 x = tmp_name.replace(".ci",".asm")
 asm_file = open(x, "w")
@@ -2454,6 +2460,3 @@ print()
 main_obj.print()
 
 print(str(main_start_quad) +" "+ str(main_framelenght))
-
-
-
