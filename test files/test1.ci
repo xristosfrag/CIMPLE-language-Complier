@@ -1,2 +1,0 @@
-program : program test1 block. 0
-block : subdeclarations programs statements

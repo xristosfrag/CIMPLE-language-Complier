@@ -1,0 +1,47 @@
+program symbol
+
+    declare a,b,c;
+
+    procedure A1(in x)
+
+        declare a,e;
+
+        procedure B1(inout x,in y)
+
+            declare a;
+
+            procedure C1(inout y)
+
+                declare a;
+
+                a := a+1;
+            
+            procedure C2(inout x, inout y)
+
+                declare a;
+                {
+                    a := a+2;
+                    a := a+a
+                }
+            
+            a := a+5;
+        
+        procedure B2(in x)
+
+            declare a,e;
+            {
+                a := a+e;
+                e := a+e
+            }
+        ;
+    procedure A2(in x,in y)
+
+        declare a;
+
+        a := a*a;
+    
+    {
+        b := a+b;
+        c := (b+a)
+    }
+.

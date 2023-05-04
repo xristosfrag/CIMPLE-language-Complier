@@ -1,0 +1,15 @@
+program countDigits
+
+    declare x, count;
+
+    # m a i n #
+    {
+        input(x);
+        count := 0;
+        if([x <= 3] and [count = 0])
+            print(x);
+        else
+            print(count);
+        ;
+        print(count);
+    }.
